@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "leaderboard": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["score"],
+      "$entry": {
+        ".validate": "newData.hasChildren(['name', 'score'])",
+        "name": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "score": { ".validate": "newData.isNumber()" },
+        "createdAt": { ".validate": "newData.isNumber() || !newData.exists()" },
+        "$other": { ".validate": false }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['username', 'email'])",
+        "username": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "email": { ".validate": "newData.isString()" },
+        "createdAt": { ".validate": "newData.isNumber() || !newData.exists()" },
+        "$other": { ".validate": false }
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
