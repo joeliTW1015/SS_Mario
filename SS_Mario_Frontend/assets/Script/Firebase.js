@@ -1,8 +1,3 @@
-// Firebase (compat) loader + init for Cocos Creator 2.4.x web builds.
-// The compat SDK is loaded from the gstatic CDN at runtime, which avoids the
-// modular-npm resolution problems Cocos 2.4.x has. The apiKey below is a public
-// client identifier (not a secret) — access is controlled by Realtime Database rules.
-
 const FIREBASE_VERSION = "10.14.1";
 const SDK_SCRIPTS = [
   "https://www.gstatic.com/firebasejs/" + FIREBASE_VERSION + "/firebase-app-compat.js",
@@ -44,20 +39,19 @@ function loadScript(src) {
   });
 }
 
-// Loads + initializes Firebase exactly once. Resolves with the global firebase namespace.
 function init() {
   if (readyPromise) return readyPromise;
-  readyPromise = (async function () {
-    for (let i = 0; i < SDK_SCRIPTS.length; i++) {
-      await loadScript(SDK_SCRIPTS[i]);
-    }
+  // Load SDK scripts sequentially, then init the app.
+  readyPromise = SDK_SCRIPTS.reduce(function (chain, src) {
+    return chain.then(function () { return loadScript(src); });
+  }, Promise.resolve()).then(function () {
     const firebase = window.firebase;
     if (!firebase) throw new Error("Firebase SDK failed to load");
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
     return firebase;
-  })();
+  });
   return readyPromise;
 }
 

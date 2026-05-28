@@ -1,6 +1,6 @@
 {
   "database": {
-    "rules": "database.rules.json"
+    "rules": "SS_Mario_Backend/database.rules.json"
   },
   "hosting": {
     "public": "SS_Mario_Frontend/build/web-mobile",
