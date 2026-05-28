@@ -1,5 +1,6 @@
 const Auth = require("Auth");
 const Firebase = require("Firebase");
+const Leaderboard = require("Leaderboard");
 
 const { ccclass, property } = cc._decorator;
 
@@ -45,10 +46,16 @@ export default class GameManager extends cc.Component {
 
   lives: number = 3;
   score: number = 0;
+
+  @property
   timerSeconds: number = 200;
+
+  @property
   currentLevel: number = 1;
+
   playerState: string = "SMALL";   // "SMALL" | "BIG" | "DEAD"
 
+  private initialTimerSeconds: number = 200;
   private timerRunning: boolean = false;
   private bgmId: number = -1;
   private gameEnded: boolean = false;
@@ -57,6 +64,7 @@ export default class GameManager extends cc.Component {
 
   onLoad() {
     _instance = this;
+    this.initialTimerSeconds = this.timerSeconds;
 
     // Enable Box2D physics
     const physics = cc.director.getPhysicsManager();
@@ -151,10 +159,29 @@ export default class GameManager extends cc.Component {
     cc.audioEngine.stopMusic();
     if (this.winPanel) { this.winPanel.active = true; }
     this.saveProgress();
+    this.submitToLeaderboard();
     const self = this;
     this.scheduleOnce(function () {
       self.goToLevelSelect();
     }, 3);
+  }
+
+  // Submit completion time to the backend leaderboard
+  private submitToLeaderboard() {
+    const elapsed = Math.floor(this.initialTimerSeconds - this.timerSeconds);
+    const level   = this.currentLevel;
+    Auth.currentUser().then(function (user: any) {
+      var name = "anonymous";
+      if (user) {
+        name = user.username || user.email || "anonymous";
+      }
+      cc.log("[GameManager] Submitting to leaderboard: " + name + " level=" + level + " time=" + elapsed + "s");
+      return Leaderboard.submitEntry(name, level, elapsed);
+    }).then(function (result: any) {
+      cc.log("[GameManager] Leaderboard submit success:", result);
+    }).catch(function (e: any) {
+      cc.warn("[GameManager] Leaderboard submit failed:", e);
+    });
   }
 
   // ─── scene navigation ────────────────────────────────────────────────────────
