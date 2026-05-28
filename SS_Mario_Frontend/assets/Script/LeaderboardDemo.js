@@ -1,6 +1,6 @@
-// Attach to any node in a scene to verify the Firebase leaderboard works.
-// On start it logs the top scores. Tick `submitTestScore` in the inspector to
-// also write one random score before reading (so you can confirm writes).
+// Attach to any node in a scene to verify the leaderboard works (Cocos 2.4.8).
+// On start it logs the leaderboard as JSON. Tick `submitTestEntry` in the
+// inspector to also POST one random entry before reading (to confirm writes).
 
 const Leaderboard = require("Leaderboard");
 
@@ -8,24 +8,27 @@ cc.Class({
   extends: cc.Component,
 
   properties: {
-    submitTestScore: false,
+    submitTestEntry: false,
     testName: "tester",
+    testLevel: 1,
   },
 
   start: function () {
     const self = this;
-    (async function () {
-      try {
-        if (self.submitTestScore) {
-          const score = Math.floor(Math.random() * 10000);
-          const key = await Leaderboard.submitScore(self.testName, score);
-          cc.log("[Leaderboard] submitted", self.testName, score, "->", key);
-        }
-        const top = await Leaderboard.getTopScores(10);
-        cc.log("[Leaderboard] top scores:", JSON.stringify(top));
-      } catch (e) {
-        cc.error("[Leaderboard] error:", (e && e.message) ? e.message : e);
-      }
-    })();
+    let chain = Promise.resolve();
+
+    if (self.submitTestEntry) {
+      const score = Math.floor(Math.random() * 10000);
+      chain = chain
+        .then(function () { return Leaderboard.submitEntry(self.testName, self.testLevel, score); })
+        .then(function (key) {
+          cc.log("[Leaderboard] submitted", self.testName, "lvl", self.testLevel, "score", score, "->", key);
+        });
+    }
+
+    chain
+      .then(function () { return Leaderboard.getLeaderboardJSON(); })
+      .then(function (json) { cc.log("[Leaderboard] entries:", json); })
+      .catch(function (e) { cc.error("[Leaderboard] error:", (e && e.message) ? e.message : e); });
   },
 });

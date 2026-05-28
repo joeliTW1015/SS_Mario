@@ -5,10 +5,11 @@
       ".write": true,
       ".indexOn": ["score"],
       "$entry": {
-        ".validate": "newData.hasChildren(['name', 'score'])",
-        "name": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        ".validate": "newData.hasChildren(['username', 'level', 'score', 'timestamp'])",
+        "username": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "level": { ".validate": "newData.isNumber()" },
         "score": { ".validate": "newData.isNumber()" },
-        "createdAt": { ".validate": "newData.isNumber() || !newData.exists()" },
+        "timestamp": { ".validate": "newData.isNumber()" },
         "$other": { ".validate": false }
       }
     },
