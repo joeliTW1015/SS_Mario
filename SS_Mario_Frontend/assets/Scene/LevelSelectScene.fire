@@ -89,6 +89,9 @@
       },
       {
         "__id__": 60
+      },
+      {
+        "__id__": 61
       }
     ],
     "_prefab": null,
@@ -905,7 +908,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 240,
+      "width": 350,
       "height": 250
     },
     "_anchorPoint": {
@@ -989,7 +992,7 @@
       "__type__": "TypedArray",
       "ctor": "Float64Array",
       "array": [
-        120,
+        175,
         0,
         0,
         0,
@@ -1330,7 +1333,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 131.33,
+      "width": 98.5,
       "height": 65.2
     },
     "_anchorPoint": {
@@ -1384,7 +1387,7 @@
     "_dstBlendFactor": 771,
     "_string": "ScrollView content\n\n",
     "_N$string": "ScrollView content\n\n",
-    "_fontSize": 16,
+    "_fontSize": 12,
     "_lineHeight": 20,
     "_enableWrapText": true,
     "_N$file": null,
@@ -1869,8 +1872,8 @@
     ],
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
-    "_string": "Level1",
-    "_N$string": "Level1",
+    "_string": "Level2",
+    "_N$string": "Level2",
     "_fontSize": 30,
     "_lineHeight": 40,
     "_enableWrapText": false,
@@ -2158,7 +2161,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 240,
+      "width": 350,
       "height": 250
     },
     "_anchorPoint": {
@@ -2242,7 +2245,7 @@
       "__type__": "TypedArray",
       "ctor": "Float64Array",
       "array": [
-        120,
+        175,
         0,
         0,
         0,
@@ -2583,7 +2586,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 131.33,
+      "width": 98.5,
       "height": 65.2
     },
     "_anchorPoint": {
@@ -2637,7 +2640,7 @@
     "_dstBlendFactor": 771,
     "_string": "ScrollView content\n\n",
     "_N$string": "ScrollView content\n\n",
-    "_fontSize": 16,
+    "_fontSize": 12,
     "_lineHeight": 20,
     "_enableWrapText": true,
     "_N$file": null,
@@ -2782,7 +2785,7 @@
       "ctor": "Float64Array",
       "array": [
         0,
-        497.955,
+        498,
         0,
         0,
         0,
@@ -2821,8 +2824,8 @@
     ],
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
-    "_string": "Leaderboard 1",
-    "_N$string": "Leaderboard 1",
+    "_string": "Leaderboard 2",
+    "_N$string": "Leaderboard 2",
     "_fontSize": 40,
     "_lineHeight": 40,
     "_enableWrapText": true,
@@ -2882,5 +2885,15 @@
     "_originalWidth": 0,
     "_originalHeight": 0,
     "_id": "91/kwSGnNL74Qkeoi0LiNi"
+  },
+  {
+    "__type__": "a3f3374un1L9Y9HL7AbmlUU",
+    "_name": "",
+    "_objFlags": 0,
+    "node": {
+      "__id__": 2
+    },
+    "_enabled": true,
+    "_id": "eehsm8HWtMgYp+++0wjDvc"
   }
 ]
