@@ -24,6 +24,25 @@
         "$other": { ".validate": false }
       }
     },
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null",
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['x', 'y'])",
+            "name":        { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "x":           { ".validate": "newData.isNumber()" },
+            "y":           { ".validate": "newData.isNumber()" },
+            "facingRight": { ".validate": "newData.isBoolean()" },
+            "anim":        { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "state":       { ".validate": "newData.isString() && newData.val().length <= 12" },
+            "updatedAt":   { ".validate": "newData.isNumber()" },
+            "$other":      { ".validate": false }
+          }
+        }
+      }
+    },
     "$other": {
       ".read": false,
       ".write": false
