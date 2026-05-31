@@ -2989,9 +2989,15 @@
     "bigScale": 1.5,
     "bigMoveBoost": 1.5,
     "bigJumpBoost": 1.35,
-    "anim": null,
-    "bodyCollider": null,
-    "sfxJump": null,
+    "anim": {
+      "__id__": 79
+    },
+    "bodyCollider": {
+      "__id__": 78
+    },
+    "sfxJump": {
+      "__uuid__": "0097add6-f347-4708-8493-ce0fcee9df71"
+    },
     "sfxStomp": null,
     "sfxGrow": null,
     "sfxHurt": null,
