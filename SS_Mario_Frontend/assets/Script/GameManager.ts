@@ -1,8 +1,10 @@
 const Auth = require("Auth");
 const Firebase = require("Firebase");
 const Leaderboard = require("Leaderboard");
-const FocusManager = require("FocusManager");
+const FocusManager  = require("FocusManager");
 const SettingsPanel = require("SettingsPanel");
+const A11yBridge    = require("A11yBridge");
+const AudioRouter   = require("AudioRouter");
 
 const { ccclass, property } = cc._decorator;
 
@@ -125,6 +127,8 @@ export default class GameManager extends cc.Component {
     }
     FocusManager.ensure();
     SettingsPanel.init();
+    A11yBridge.init();
+    AudioRouter.init();
   }
 
   onDestroy() {
