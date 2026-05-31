@@ -8,9 +8,12 @@ const { ccclass, property } = cc._decorator;
 interface Puppet {
   node: cc.Node;
   anim: cc.Animation;
+  label: cc.Node;          // sibling Label node above the ghost's head
+  sizeScale: number;       // 1 for SMALL, bigScale for BIG — used for label Y
   targetX: number;
   targetY: number;
   lastAnim: string;
+  lastName: string;
   inited: boolean;
 }
 
@@ -36,6 +39,12 @@ export default class MultiplayerSync extends cc.Component {
 
   @property({ tooltip: "Opacity (0-255) of remote-player ghosts. ~120 = semi-transparent." })
   ghostOpacity: number = 120;
+
+  @property({ tooltip: "Y offset (px) of the username label above each ghost's origin." })
+  nameLabelOffsetY: number = 28;
+
+  @property({ tooltip: "Font size of the username label." })
+  nameLabelFontSize: number = 14;
 
   // ─── state ───────────────────────────────────────────────────────────────────
 
@@ -101,6 +110,12 @@ export default class MultiplayerSync extends cc.Component {
       if (!p.node || !p.node.isValid) { continue; }
       p.node.x += (p.targetX - p.node.x) * t;
       p.node.y += (p.targetY - p.node.y) * t;
+      // Label is a sibling node so it stays upright & full-opacity regardless
+      // of the puppet's scaleX flip and ghost opacity. Track puppet position.
+      if (p.label && p.label.isValid) {
+        p.label.x = p.node.x;
+        p.label.y = p.node.y + this.nameLabelOffsetY * p.sizeScale;
+      }
     }
   }
 
@@ -153,6 +168,7 @@ export default class MultiplayerSync extends cc.Component {
     const facingRight = state.facingRight !== false;   // default true
     p.node.scaleX = (facingRight ? 1 : -1) * sizeScale;
     p.node.scaleY = sizeScale;
+    p.sizeScale = sizeScale;
 
     if (state.anim && state.anim !== p.lastAnim && p.anim) {
       if (p.anim.getAnimationState(state.anim)) {
@@ -160,11 +176,21 @@ export default class MultiplayerSync extends cc.Component {
         p.lastAnim = state.anim;
       }
     }
+
+    // Username label — only touch the string when it actually changes.
+    if (p.label && p.label.isValid && typeof state.name === "string" && state.name !== p.lastName) {
+      const lbl = p.label.getComponent(cc.Label);
+      if (lbl) { lbl.string = state.name; }
+      p.lastName = state.name;
+    }
   }
 
   private onRemoteLeft(uid: string) {
     const p = this.puppets[uid];
-    if (p && p.node && p.node.isValid) { p.node.destroy(); }
+    if (p) {
+      if (p.node  && p.node.isValid)  { p.node.destroy(); }
+      if (p.label && p.label.isValid) { p.label.destroy(); }
+    }
     delete this.puppets[uid];
   }
 
@@ -190,14 +216,35 @@ export default class MultiplayerSync extends cc.Component {
       : this.node;
     parent.addChild(node);
 
+    // Sibling label — kept outside the puppet so the puppet's scaleX flip
+    // doesn't mirror the text, and the ghost opacity doesn't fade the name.
+    const label = this.createNameLabel();
+    parent.addChild(label);
+
     return {
       node: node,
       anim: node.getComponent(cc.Animation),
+      label: label,
+      sizeScale: 1,
       targetX: node.x,
       targetY: node.y,
       lastAnim: "",
+      lastName: "",
       inited: false,
     };
+  }
+
+  private createNameLabel(): cc.Node {
+    const n = new cc.Node("PlayerName");
+    const lbl = n.addComponent(cc.Label);
+    lbl.string = "";
+    lbl.fontSize = this.nameLabelFontSize;
+    lbl.lineHeight = this.nameLabelFontSize + 2;
+    lbl.horizontalAlign = cc.Label.HorizontalAlign.CENTER;
+    lbl.verticalAlign = cc.Label.VerticalAlign.BOTTOM;
+    n.color = cc.Color.WHITE;
+    n.opacity = 230;
+    return n;
   }
 
   // Strips a cloned player down to a pure visual: no controller, no rigid body,
