@@ -1,4 +1,3 @@
-import GameManager from "./GameManager";
 import PlayerController from "./PlayerController";
 
 const { ccclass, property } = cc._decorator;
@@ -24,6 +23,8 @@ export default class SuperMushroom extends cc.Component {
 
   onLoad() {
     this.rb = this.getComponent(cc.RigidBody);
+    // Contact callbacks only fire on this node if its RigidBody is listening.
+    if (this.rb) { this.rb.enabledContactListener = true; }
     // onBeginContact below is auto-called by physics manager.
   }
 
@@ -81,10 +82,6 @@ export default class SuperMushroom extends cc.Component {
     // Grow player
     const playerCtrl = playerNode.getComponent(PlayerController);
     if (playerCtrl) { playerCtrl.growBig(); }
-
-    // Score
-    const gm = GameManager.getInstance();
-    if (gm) { gm.addScore(1000); }
 
     // Sound
     if (this.sfxCollect) { cc.audioEngine.playEffect(this.sfxCollect, false); }

@@ -1,5 +1,3 @@
-import GameManager from "./GameManager";
-
 const { ccclass, property } = cc._decorator;
 
 @ccclass
@@ -15,12 +13,6 @@ export default class QuestionBlock extends cc.Component {
 
   @property
   bounceHeight: number = 16;
-
-  @property
-  givesCoin: boolean = false;   // if true, add coin score instead of spawning mushroom
-
-  @property
-  coinScore: number = 200;
 
   // ─── state ───────────────────────────────────────────────────────────────────
 
@@ -74,13 +66,8 @@ export default class QuestionBlock extends cc.Component {
       if (sprite) { sprite.spriteFrame = this.emptySprite; }
     }
 
-    const gm = GameManager.getInstance();
-
-    if (this.givesCoin || !this.mushroomPrefab) {
-      // Coin block: just add score
-      if (gm) { gm.addScore(this.coinScore); }
-    } else {
-      // Spawn mushroom slightly above block
+    // Spawn mushroom (if prefab set) slightly above block
+    if (this.mushroomPrefab) {
       const mushroom = cc.instantiate(this.mushroomPrefab);
       const parent = this.node.parent;
       parent.addChild(mushroom);
@@ -91,8 +78,6 @@ export default class QuestionBlock extends cc.Component {
         cc.v2(blockWorld.x, blockWorld.y + this.node.height)
       );
       mushroom.setPosition(localPos);
-
-      if (gm) { gm.addScore(this.coinScore); }
     }
   }
 }

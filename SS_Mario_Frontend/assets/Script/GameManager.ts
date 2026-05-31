@@ -7,6 +7,17 @@ const { ccclass, property } = cc._decorator;
 // Module-level singleton reference (avoids static field issues in Cocos 2.4.x)
 let _instance: GameManager = null;
 
+// Lives must survive scene reloads. `cc.director.loadScene` rebuilds every
+// node so any field initializer (e.g. `lives = 3`) is reset — but module-level
+// variables persist, so we stash the count here.
+const DEFAULT_LIVES = 3;
+let _persistedLives: number = DEFAULT_LIVES;
+
+// Same trick for the timer: when the player dies but still has lives, the
+// clock must NOT refill on respawn. Sentinel -1 means "not yet persisted —
+// fall back to the @property default the editor set".
+let _persistedTimer: number = -1;
+
 @ccclass
 export default class GameManager extends cc.Component {
 
@@ -28,9 +39,6 @@ export default class GameManager extends cc.Component {
   livesLabel: cc.Label = null;
 
   @property(cc.Label)
-  scoreLabel: cc.Label = null;
-
-  @property(cc.Label)
   timerLabel: cc.Label = null;
 
   @property(cc.AudioClip)
@@ -39,13 +47,9 @@ export default class GameManager extends cc.Component {
   @property(cc.AudioClip)
   sfxDeath: cc.AudioClip = null;
 
-  @property(cc.AudioClip)
-  sfxScore: cc.AudioClip = null;
-
   // ─── game state ──────────────────────────────────────────────────────────────
 
   lives: number = 3;
-  score: number = 0;
 
   @property
   timerSeconds: number = 200;
@@ -59,12 +63,25 @@ export default class GameManager extends cc.Component {
   private timerRunning: boolean = false;
   private bgmId: number = -1;
   private gameEnded: boolean = false;
+  // Re-entry guard for triggerPlayerDeath. Prevents double-decrement when
+  // multiple sources (enemy + DeadZone + timer) all fire in the same death.
+  private dying: boolean = false;
 
   // ─── lifecycle ───────────────────────────────────────────────────────────────
 
   onLoad() {
     _instance = this;
     this.initialTimerSeconds = this.timerSeconds;
+
+    // Restore the persisted life count (carries across loadScene reloads).
+    // First-ever scene load: _persistedLives is DEFAULT_LIVES.
+    this.lives = _persistedLives;
+
+    // Restore the persisted clock if a previous life left one. On a fresh game
+    // it's still -1, so the @property default from the editor stays in effect.
+    if (_persistedTimer >= 0) {
+      this.timerSeconds = _persistedTimer;
+    }
 
     // Enable Box2D physics
     const physics = cc.director.getPhysicsManager();
@@ -77,7 +94,6 @@ export default class GameManager extends cc.Component {
 
     // Init HUD
     this.updateLivesLabel();
-    this.updateScoreLabel();
     this.updateTimerLabel();
 
     // Start BGM
@@ -111,19 +127,21 @@ export default class GameManager extends cc.Component {
     }
   }
 
-  // ─── score / lives ───────────────────────────────────────────────────────────
-
-  addScore(points: number) {
-    this.score += points;
-    this.updateScoreLabel();
-    if (this.sfxScore) { cc.audioEngine.playEffect(this.sfxScore, false); }
-    this.saveProgress();
-  }
+  // ─── lives ───────────────────────────────────────────────────────────────────
 
   triggerPlayerDeath() {
-    if (this.gameEnded) { return; }
+    // Guard against double-decrement: between the moment a death is triggered
+    // and the scene actually reloading (1.5 s later), other sources (DeadZone,
+    // timer, another enemy contact) can still try to deduct a life.
+    if (this.gameEnded || this.dying) { return; }
+    this.dying = true;
+    // Freeze the clock during the death animation so it doesn't tick down
+    // for free while the player is dead.
+    this.timerRunning = false;
+
     this.lives--;
     if (this.lives < 0) { this.lives = 0; }
+    _persistedLives = this.lives;   // carry the new count across the scene reload
     this.updateLivesLabel();
 
     if (this.sfxDeath) { cc.audioEngine.playEffect(this.sfxDeath, false); }
@@ -131,6 +149,9 @@ export default class GameManager extends cc.Component {
     if (this.lives <= 0) {
       this.showGameOver();
     } else {
+      // Still have lives — carry the remaining time over so respawning the
+      // level doesn't refill the clock.
+      _persistedTimer = this.timerSeconds;
       const self = this;
       this.scheduleOnce(function () {
         cc.director.loadScene("Level1");
@@ -146,9 +167,14 @@ export default class GameManager extends cc.Component {
     this.timerRunning = false;
     cc.audioEngine.stopMusic();
     if (this.gameOverPanel) { this.gameOverPanel.active = true; }
+    // The run is over — refill lives AND reset the clock for the next attempt.
+    _persistedLives = DEFAULT_LIVES;
+    _persistedTimer = -1;
+    // After showing the Game Over panel for a moment, return to level selection
+    // (not restart the same level — the player has already lost all lives).
     const self = this;
     this.scheduleOnce(function () {
-      self.restartLevel();
+      self.goToLevelSelect();
     }, 3);
   }
 
@@ -160,6 +186,9 @@ export default class GameManager extends cc.Component {
     if (this.winPanel) { this.winPanel.active = true; }
     this.saveProgress();
     this.submitToLeaderboard();
+    // Player cleared the level — refresh lives and clock for the next run.
+    _persistedLives = DEFAULT_LIVES;
+    _persistedTimer = -1;
     const self = this;
     this.scheduleOnce(function () {
       self.goToLevelSelect();
@@ -204,7 +233,6 @@ export default class GameManager extends cc.Component {
         return firebase.database()
           .ref("users/" + user.uid + "/gameProgress")
           .set({
-            score: self.score,
             lives: self.lives,
             level: self.currentLevel,
             savedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -226,10 +254,6 @@ export default class GameManager extends cc.Component {
           .then(function (snap) {
             const data = snap.val();
             if (!data) { return; }
-            if (typeof data.score === "number") {
-              self.score = data.score;
-              self.updateScoreLabel();
-            }
             if (typeof data.lives === "number" && data.lives > 0) {
               self.lives = data.lives;
               self.updateLivesLabel();
@@ -246,22 +270,18 @@ export default class GameManager extends cc.Component {
 
   private updateLivesLabel() {
     if (this.livesLabel) {
-      this.livesLabel.string = "x" + this.lives;
-    }
-  }
-
-  private updateScoreLabel() {
-    if (this.scoreLabel) {
-      // Zero-pad to 6 digits
-      let s = String(this.score);
-      while (s.length < 6) { s = "0" + s; }
-      this.scoreLabel.string = s;
+      this.livesLabel.string = "Lives: x" + this.lives;
     }
   }
 
   private updateTimerLabel() {
     if (this.timerLabel) {
-      this.timerLabel.string = String(Math.ceil(this.timerSeconds));
+      const total = Math.max(0, Math.ceil(this.timerSeconds));
+      const mm = Math.floor(total / 60);
+      const ss = total % 60;
+      const mmStr = (mm < 10 ? "0" : "") + mm;
+      const ssStr = (ss < 10 ? "0" : "") + ss;
+      this.timerLabel.string = "TIME: " + mmStr + ":" + ssStr;
     }
   }
 }

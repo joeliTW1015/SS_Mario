@@ -23,8 +23,16 @@ export default class GoombaController extends cc.Component {
     this.rb = this.getComponent(cc.RigidBody);
     if (!this.anim) { this.anim = this.getComponent(cc.Animation); }
 
-    // onBeginContact below is auto-called by physics manager
-    // (RigidBody must have enabledContactListener = true).
+    // onBeginContact below is auto-called by physics manager, but ONLY if this
+    // node's RigidBody has enabledContactListener = true. Force it on here.
+    if (this.rb) {
+      this.rb.enabledContactListener = true;
+      cc.log("[Goomba] '" + this.node.name + "' RigidBody OK. type=" + this.rb.type +
+             " (Dynamic must be " + cc.RigidBodyType.Dynamic + ")");
+    } else {
+      cc.warn("[Goomba] '" + this.node.name +
+              "' has NO RigidBody — enemy cannot move. Add a Dynamic RigidBody + PhysicsBoxCollider.");
+    }
 
     // Start walking
     if (this.anim) { this.anim.play("walk"); }
@@ -34,6 +42,8 @@ export default class GoombaController extends cc.Component {
     // Apply initial velocity after first physics tick
     if (this.rb) {
       this.rb.linearVelocity = cc.v2(this.directionX * this.moveSpeed, 0);
+      cc.log("[Goomba] '" + this.node.name + "' initial velocity set to vx=" +
+             (this.directionX * this.moveSpeed));
     }
   }
 
@@ -82,13 +92,8 @@ export default class GoombaController extends cc.Component {
     if (!this.alive) { return; }
     this.alive = false;
 
-    if (this.rb) {
-      this.rb.linearVelocity = cc.v2(0, 0);
-      this.rb.type = cc.RigidBodyType.Static;
-    }
-
+    // Visible "squashed" state runs immediately — this is what the player sees.
     if (this.anim) {
-      // Try to play "dead" clip; if unavailable, just hide
       const deadState = this.anim.getAnimationState("dead");
       if (deadState) {
         this.anim.play("dead");
@@ -97,8 +102,20 @@ export default class GoombaController extends cc.Component {
       }
     }
 
-    // Destroy after short delay
     const self = this;
+
+    // ⚠️ Box2D forbids changing RigidBody.type (or rebuilding fixtures) inside
+    // a contact callback — and this method IS called from the player's
+    // onBeginContact stomp path. Defer the body mutations one frame; otherwise
+    // they throw silently and the goomba ends up in a half-dead zombie state.
+    this.scheduleOnce(function () {
+      if (self.rb && self.rb.isValid) {
+        self.rb.linearVelocity = cc.v2(0, 0);
+        self.rb.type = cc.RigidBodyType.Static;
+      }
+    }, 0);
+
+    // Destroy after short delay (let the squashed sprite show for a moment).
     this.scheduleOnce(function () {
       if (self.node && self.node.isValid) { self.node.destroy(); }
     }, 0.4);
