@@ -17,7 +17,7 @@ interface Puppet {
   inited: boolean;
 }
 
-@ccclass("MultiplayerSync")
+@ccclass
 export default class MultiplayerSync extends cc.Component {
 
   // ─── inspector ───────────────────────────────────────────────────────────────
