@@ -4,18 +4,17 @@ const RoomSync = require("RoomSync");
 const { ccclass, property } = cc._decorator;
 
 // Visual-only stand-in for a remote player. Driven entirely by network state;
-// no physics, no input.
+// no physics, no input. Rendered semi-transparent.
 interface Puppet {
   node: cc.Node;
   anim: cc.Animation;
-  baseScaleX: number;
   targetX: number;
   targetY: number;
   lastAnim: string;
   inited: boolean;
 }
 
-@ccclass
+@ccclass("MultiplayerSync")
 export default class MultiplayerSync extends cc.Component {
 
   // ─── inspector ───────────────────────────────────────────────────────────────
@@ -35,11 +34,15 @@ export default class MultiplayerSync extends cc.Component {
   @property({ tooltip: "Remote movement smoothing. Higher = snappier, lower = smoother." })
   lerpSpeed: number = 12;
 
+  @property({ tooltip: "Opacity (0-255) of remote-player ghosts. ~120 = semi-transparent." })
+  ghostOpacity: number = 120;
+
   // ─── state ───────────────────────────────────────────────────────────────────
 
   private myUid: string = null;
   private joined: boolean = false;
   private localPC: any = null;
+  private bigScale: number = 1.5;   // mirrors PlayerController.bigScale, read in onLoad
   private puppets: { [uid: string]: Puppet } = {};
 
   // ─── lifecycle ───────────────────────────────────────────────────────────────
@@ -50,6 +53,9 @@ export default class MultiplayerSync extends cc.Component {
     }
     if (this.localPlayer) {
       this.localPC = this.localPlayer.getComponent("PlayerController");
+      if (this.localPC && typeof this.localPC.bigScale === "number") {
+        this.bigScale = this.localPC.bigScale;
+      }
     }
   }
 
@@ -141,9 +147,12 @@ export default class MultiplayerSync extends cc.Component {
       p.inited = true;
     }
 
-    if (typeof state.facingRight === "boolean") {
-      p.node.scaleX = p.baseScaleX * (state.facingRight ? 1 : -1);
-    }
+    // scaleX carries facing-flip × size, scaleY carries size only — same shape
+    // as PlayerController.update so the ghost mirrors growBig/shrink visually.
+    const sizeScale = state.state === "BIG" ? this.bigScale : 1;
+    const facingRight = state.facingRight !== false;   // default true
+    p.node.scaleX = (facingRight ? 1 : -1) * sizeScale;
+    p.node.scaleY = sizeScale;
 
     if (state.anim && state.anim !== p.lastAnim && p.anim) {
       if (p.anim.getAnimationState(state.anim)) {
@@ -171,7 +180,10 @@ export default class MultiplayerSync extends cc.Component {
     if (!node) { return null; }
 
     node.name = "RemotePlayer";
-    node.opacity = 255;
+    node.opacity = this.ghostOpacity;
+    // Reset scale; size/facing are reapplied each onRemoteUpsert based on state.
+    node.scaleX = 1;
+    node.scaleY = 1;
 
     const parent = this.localPlayer && this.localPlayer.parent
       ? this.localPlayer.parent
@@ -181,7 +193,6 @@ export default class MultiplayerSync extends cc.Component {
     return {
       node: node,
       anim: node.getComponent(cc.Animation),
-      baseScaleX: Math.abs(node.scaleX) || 1,
       targetX: node.x,
       targetY: node.y,
       lastAnim: "",
@@ -190,17 +201,24 @@ export default class MultiplayerSync extends cc.Component {
   }
 
   // Strips a cloned player down to a pure visual: no controller, no rigid body,
-  // no colliders. Done while the node is still detached so onLoad never fires
-  // for the removed components.
+  // no colliders. Done while the node is still detached so the removed
+  // components' onLoad ideally never fires; we also disable them defensively
+  // because removeComponent is deferred to end-of-frame in Cocos 2.4.
   private stripToVisual(node: cc.Node) {
-    const pc = node.getComponent("PlayerController");
-    if (pc) { node.removeComponent(pc); }
+    const pc = node.getComponent("PlayerController") as any;
+    if (pc) { pc.enabled = false; node.removeComponent(pc); }
 
     const rb = node.getComponent(cc.RigidBody);
-    if (rb) { node.removeComponent(rb); }
+    if (rb) {
+      // Belt-and-braces: even if the body lives for one frame, freeze it.
+      rb.type = cc.RigidBodyType.Static;
+      rb.enabled = false;
+      node.removeComponent(rb);
+    }
 
     const colliders = node.getComponents(cc.Collider);
     for (let i = 0; i < colliders.length; i++) {
+      colliders[i].enabled = false;
       node.removeComponent(colliders[i]);
     }
   }

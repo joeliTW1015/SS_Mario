@@ -108,6 +108,12 @@ export default class GameManager extends cc.Component {
     }).catch(function () {
       self.timerRunning = true;
     });
+
+    // Auto-attach multiplayer ghost sync so no editor wiring is needed.
+    // Becomes a no-op if no user is logged in (see MultiplayerSync.start).
+    if (!this.node.getComponent("MultiplayerSync")) {
+      this.node.addComponent("MultiplayerSync");
+    }
   }
 
   onDestroy() {
