@@ -63,12 +63,20 @@ function logout() {
 }
 
 // Returns the signed-in user as { uid, email, username }, or null if none.
+// Waits for Firebase Auth to finish restoring its state from storage —
+// firebase.auth().currentUser is null synchronously even when a session
+// exists, until the restore completes. onAuthStateChanged fires once with
+// the resolved state, which is the safe value to read.
 function currentUser() {
   return Firebase.init()
     .then(function (firebase) {
-      const user = firebase.auth().currentUser;
-      if (!user) return null;
-      return { uid: user.uid, email: user.email, username: user.displayName };
+      return new Promise(function (resolve) {
+        const unsubscribe = firebase.auth().onAuthStateChanged(function (user) {
+          unsubscribe();
+          if (!user) { resolve(null); return; }
+          resolve({ uid: user.uid, email: user.email, username: user.displayName });
+        });
+      });
     });
 }
 

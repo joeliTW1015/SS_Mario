@@ -50,7 +50,20 @@ function init() {
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
-    return firebase;
+    // Per-tab auth session. The default (LOCAL) shares the logged-in user
+    // across tabs of the same browser via localStorage, which breaks
+    // multiplayer testing on one machine: tab 2 logging in as account B
+    // overwrites tab 1's account A session, so both tabs read currentUser
+    // as B → same uid → they write to the same RTDB node → no ghosts.
+    return firebase.auth()
+      .setPersistence(firebase.auth.Auth.Persistence.SESSION)
+      .then(function () { return firebase; })
+      .catch(function (e) {
+        if (typeof cc !== "undefined") {
+          cc.warn("[Firebase] setPersistence(SESSION) failed:", e);
+        }
+        return firebase;
+      });
   });
   return readyPromise;
 }
