@@ -53,8 +53,10 @@ function join(roomId, uid, name, initialState) {
     _playerRef.onDisconnect().remove();
 
     return _playerRef.set(state).then(function () {
+      cc.log("[RoomSync] joined room=" + roomId + " uid=" + uid);
       _cbAdded = _playersRef.on("child_added", function (snap) {
         if (snap.key === _uid) return;
+        cc.log("[RoomSync] child_added uid=" + snap.key);
         _emit("playerJoined", { uid: snap.key, state: snap.val() });
       });
       _cbChanged = _playersRef.on("child_changed", function (snap) {
@@ -63,8 +65,15 @@ function join(roomId, uid, name, initialState) {
       });
       _cbRemoved = _playersRef.on("child_removed", function (snap) {
         if (snap.key === _uid) return;
+        cc.log("[RoomSync] child_removed uid=" + snap.key);
         _emit("playerLeft", { uid: snap.key });
       });
+    }, function (err) {
+      // Most commonly seen here: PERMISSION_DENIED because the new "rooms" rule
+      // hasn't been deployed to Realtime Database yet.
+      cc.error("[RoomSync] write to rooms/" + roomId + "/players/" + uid +
+               " failed: " + (err && err.message ? err.message : err));
+      throw err;
     });
   });
 }
@@ -98,6 +107,9 @@ function leave() {
   _cbAdded = null;
   _cbChanged = null;
   _cbRemoved = null;
+
+  // Drop external subscribers too so a scene reload doesn't accumulate them.
+  for (const k in _handlers) { _handlers[k] = []; }
 }
 
 module.exports = {

@@ -53,19 +53,40 @@ export default class MultiplayerSync extends cc.Component {
   private localPC: any = null;
   private bigScale: number = 1.5;   // mirrors PlayerController.bigScale, read in onLoad
   private puppets: { [uid: string]: Puppet } = {};
+  private localLabel: cc.Node = null;   // own username displayed above local player
 
   // ─── lifecycle ───────────────────────────────────────────────────────────────
 
   onLoad() {
     if (!this.localPlayer) {
+      // cc.find only traverses scene-root by direct path; if Player is nested
+      // (e.g. under Canvas/World), fall back to a recursive search.
       this.localPlayer = cc.find("Player");
+      if (!this.localPlayer) {
+        this.localPlayer = this.findNodeByName(cc.director.getScene() as any, "Player");
+      }
     }
     if (this.localPlayer) {
       this.localPC = this.localPlayer.getComponent("PlayerController");
       if (this.localPC && typeof this.localPC.bigScale === "number") {
         this.bigScale = this.localPC.bigScale;
       }
+      cc.log("[MultiplayerSync] localPlayer=", this.localPlayer.name,
+             "parent=", this.localPlayer.parent ? this.localPlayer.parent.name : "(none)");
+    } else {
+      cc.warn("[MultiplayerSync] Could not find a node named 'Player' in the scene.");
     }
+  }
+
+  private findNodeByName(root: cc.Node, name: string): cc.Node {
+    if (!root) { return null; }
+    if (root.name === name) { return root; }
+    const children = root.children;
+    for (let i = 0; i < children.length; i++) {
+      const found = this.findNodeByName(children[i], name);
+      if (found) { return found; }
+    }
+    return null;
   }
 
   start() {
@@ -82,11 +103,20 @@ export default class MultiplayerSync extends cc.Component {
       }
       self.myUid = user.uid;
       const name = user.username || user.email || "Player";
+      cc.log("[MultiplayerSync] joining room=" + self.roomId + " uid=" + user.uid + " name=" + name);
+
+      // Register handlers BEFORE join() so we don't miss the child_added
+      // events fired retroactively for players already in the room.
+      RoomSync.on("playerJoined", function (d) { self.onRemoteUpsert(d.uid, d.state); });
+      RoomSync.on("playerUpdate", function (d) { self.onRemoteUpsert(d.uid, d.state); });
+      RoomSync.on("playerLeft",   function (d) { self.onRemoteLeft(d.uid); });
+
+      // Spawn our own username label.
+      self.spawnLocalLabel(name);
+
       return RoomSync.join(self.roomId, user.uid, name, self.readLocalState()).then(function () {
         self.joined = true;
-        RoomSync.on("playerJoined", function (d) { self.onRemoteUpsert(d.uid, d.state); });
-        RoomSync.on("playerUpdate", function (d) { self.onRemoteUpsert(d.uid, d.state); });
-        RoomSync.on("playerLeft",   function (d) { self.onRemoteLeft(d.uid); });
+        cc.log("[MultiplayerSync] joined OK; broadcasting state at " + self.sendRate + " Hz");
         const rate = self.sendRate > 0 ? self.sendRate : 15;
         self.schedule(self.tickSend, 1 / rate);
       });
@@ -95,8 +125,25 @@ export default class MultiplayerSync extends cc.Component {
     });
   }
 
+  private spawnLocalLabel(name: string) {
+    if (this.localLabel && this.localLabel.isValid) { return; }
+    const n = this.createNameLabel();
+    const lbl = n.getComponent(cc.Label);
+    if (lbl) { lbl.string = name; }
+    n.opacity = 255;   // own name fully opaque, unlike ghost labels
+    const parent = this.localPlayer && this.localPlayer.parent
+      ? this.localPlayer.parent
+      : this.node;
+    parent.addChild(n);
+    this.localLabel = n;
+  }
+
   onDestroy() {
     this.unschedule(this.tickSend);
+    if (this.localLabel && this.localLabel.isValid) {
+      this.localLabel.destroy();
+      this.localLabel = null;
+    }
     if (this.joined) {
       RoomSync.leave();
       this.joined = false;
@@ -105,6 +152,8 @@ export default class MultiplayerSync extends cc.Component {
 
   update(dt: number) {
     const t = Math.min(1, dt * this.lerpSpeed);
+
+    // Lerp remote ghosts and slide their labels along.
     for (const uid in this.puppets) {
       const p = this.puppets[uid];
       if (!p.node || !p.node.isValid) { continue; }
@@ -116,6 +165,15 @@ export default class MultiplayerSync extends cc.Component {
         p.label.x = p.node.x;
         p.label.y = p.node.y + this.nameLabelOffsetY * p.sizeScale;
       }
+    }
+
+    // Local label tracks the actual local player every frame.
+    if (this.localLabel && this.localLabel.isValid &&
+        this.localPlayer && this.localPlayer.isValid) {
+      const isBig = this.localPC && this.localPC.state === "BIG";
+      const sizeScale = isBig ? this.bigScale : 1;
+      this.localLabel.x = this.localPlayer.x;
+      this.localLabel.y = this.localPlayer.y + this.nameLabelOffsetY * sizeScale;
     }
   }
 
@@ -148,8 +206,14 @@ export default class MultiplayerSync extends cc.Component {
     let p = this.puppets[uid];
     if (!p) {
       p = this.createPuppet();
-      if (!p) { return; }
+      if (!p) {
+        cc.warn("[MultiplayerSync] createPuppet failed (no localPlayer to clone & no prefab)");
+        return;
+      }
       this.puppets[uid] = p;
+      cc.log("[MultiplayerSync] spawned ghost uid=" + uid +
+             " at (" + (state.x || 0).toFixed(1) + "," + (state.y || 0).toFixed(1) + ")" +
+             " name=" + (state.name || "?"));
     }
 
     if (typeof state.x === "number") { p.targetX = state.x; }
