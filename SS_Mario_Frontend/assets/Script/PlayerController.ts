@@ -96,6 +96,15 @@ export default class PlayerController extends cc.Component {
     cc.systemEvent.off(cc.SystemEvent.EventType.KEY_UP,   this.onKeyUp,   this);
   }
 
+  // Snapshot of the visual state other players need to mirror this player.
+  getNetState(): { facingRight: boolean; anim: string; state: string } {
+    return {
+      facingRight: this.facingRight,
+      anim: this.currentAnim || "idle",
+      state: this.state,
+    };
+  }
+
   update(dt: number) {
     if (this.isDead) { return; }
 
