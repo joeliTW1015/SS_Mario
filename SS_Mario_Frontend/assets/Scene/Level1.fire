@@ -23,7 +23,7 @@
         "__id__": 106
       },
       {
-        "__id__": 124
+        "__id__": 125
       }
     ],
     "_active": false,
@@ -3893,10 +3893,10 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 122
+        "__id__": 123
       },
       {
-        "__id__": 123
+        "__id__": 124
       }
     ],
     "_prefab": null,
@@ -3960,6 +3960,9 @@
     "_components": [
       {
         "__id__": 108
+      },
+      {
+        "__id__": 122
       }
     ],
     "_prefab": null,
@@ -4688,6 +4691,26 @@
     "_id": "19E5Lo1kpA2od8gF0zYuVD"
   },
   {
+    "__type__": "b4e39fOddZMfrcPg9vpFwNC",
+    "_name": "",
+    "_objFlags": 0,
+    "node": {
+      "__id__": 107
+    },
+    "_enabled": true,
+    "roomId": "room1",
+    "localPlayer": {
+      "__id__": 75
+    },
+    "remotePlayerPrefab": null,
+    "sendRate": 15,
+    "lerpSpeed": 12,
+    "ghostOpacity": 120,
+    "nameLabelOffsetY": 28,
+    "nameLabelFontSize": 14,
+    "_id": "132cziTlVLH7vwgQkhhXIY"
+  },
+  {
     "__type__": "cc.Canvas",
     "_name": "",
     "_objFlags": 0,
@@ -4742,7 +4765,7 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 125
+        "__id__": 126
       }
     ],
     "_prefab": null,
@@ -4798,7 +4821,7 @@
     "_name": "",
     "_objFlags": 0,
     "node": {
-      "__id__": 124
+      "__id__": 125
     },
     "_enabled": true,
     "_cullingMask": 64,
