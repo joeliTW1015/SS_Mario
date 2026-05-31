@@ -1,4 +1,6 @@
 const Auth = require("Auth");
+const FocusManager = require("FocusManager");
+const SettingsPanel = require("SettingsPanel");
 
 const { ccclass, property } = cc._decorator;
 
@@ -18,6 +20,11 @@ export default class StartSceneManager extends cc.Component {
     this.autoFindNodes();
     this.wireButtons();
     this.checkAutoLogin();
+
+    // Accessibility: keyboard nav + Esc settings overlay should work as
+    // early as the login screen.
+    FocusManager.ensure();
+    SettingsPanel.init();
   }
 
   // ─── init ────────────────────────────────────────────────────────────────────

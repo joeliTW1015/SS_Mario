@@ -1,6 +1,8 @@
 const Auth = require("Auth");
 const Firebase = require("Firebase");
 const Leaderboard = require("Leaderboard");
+const FocusManager = require("FocusManager");
+const SettingsPanel = require("SettingsPanel");
 
 const { ccclass, property } = cc._decorator;
 
@@ -114,6 +116,15 @@ export default class GameManager extends cc.Component {
     if (!this.node.getComponent("MultiplayerSync")) {
       this.node.addComponent("MultiplayerSync");
     }
+
+    // Accessibility: enemy proximity audio cues (stereo-positioned). Plus
+    // keyboard focus manager (persists across scenes) and the Esc-toggled
+    // HTML settings overlay.
+    if (!this.node.getComponent("AudioCueManager")) {
+      this.node.addComponent("AudioCueManager");
+    }
+    FocusManager.ensure();
+    SettingsPanel.init();
   }
 
   onDestroy() {

@@ -1,5 +1,7 @@
 const Auth        = require("Auth");
 const Leaderboard = require("Leaderboard");
+const FocusManager  = require("FocusManager");
+const SettingsPanel = require("SettingsPanel");
 
 const { ccclass, property } = cc._decorator;
 
@@ -48,6 +50,10 @@ export default class LevelSelectManager extends cc.Component {
     this.autoFindNodes();
     this.wireButtons();
     this.loadLeaderboards();
+
+    // Accessibility: keyboard nav + Esc settings overlay on the level menu.
+    FocusManager.ensure();
+    SettingsPanel.init();
   }
 
   // ─── node discovery ──────────────────────────────────────────────────────────
