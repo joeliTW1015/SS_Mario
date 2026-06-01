@@ -1,6 +1,8 @@
 const Auth = require("Auth");
-const FocusManager = require("FocusManager");
+const FocusManager  = require("FocusManager");
 const SettingsPanel = require("SettingsPanel");
+const A11yBridge    = require("A11yBridge");
+const AudioRouter   = require("AudioRouter");
 
 const { ccclass, property } = cc._decorator;
 
@@ -25,6 +27,8 @@ export default class StartSceneManager extends cc.Component {
     // early as the login screen.
     FocusManager.ensure();
     SettingsPanel.init();
+    A11yBridge.init();
+    AudioRouter.init();
   }
 
   // ─── init ────────────────────────────────────────────────────────────────────
