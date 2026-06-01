@@ -38,6 +38,9 @@ export default class FocusManager extends cc.Component {
   private focusedIndex: number = -1;
   private shiftHeld: boolean = false;
   private indicator: cc.Node = null;
+  // Document-level keydown handler for Tab interception (browser only). Stored
+  // so we can removeEventListener cleanly in onDestroy.
+  private _docKeyHandler: (e: KeyboardEvent) => void = null;
 
   // ─── lifecycle ───────────────────────────────────────────────────────────────
 
@@ -45,6 +48,24 @@ export default class FocusManager extends cc.Component {
     cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
     cc.systemEvent.on(cc.SystemEvent.EventType.KEY_UP,   this.onKeyUp,   this);
     cc.director.on(cc.Director.EVENT_AFTER_SCENE_LAUNCH, this.rescan, this);
+
+    // Document-level Tab capture. cc.systemEvent cannot preventDefault, so the
+    // browser would otherwise hand Tab to the address bar / dev tools / the
+    // next HTML element in tab order — and once an EditBox's <input> has
+    // native focus, Tab inside it follows the browser's tab order, not ours.
+    // We capture Tab at the document level (capture phase = true so we beat
+    // any <input> handler), preventDefault, and steer through our own list.
+    if (cc.sys.isBrowser && typeof document !== "undefined") {
+      const self = this;
+      this._docKeyHandler = function (e: KeyboardEvent) {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          self.shiftHeld = e.shiftKey;
+          self.move(e.shiftKey ? -1 : 1);
+        }
+      };
+      document.addEventListener("keydown", this._docKeyHandler, true);
+    }
 
     // Initial scan for the current scene (the one we were just ensured into).
     this.rescan();
@@ -54,6 +75,10 @@ export default class FocusManager extends cc.Component {
     cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
     cc.systemEvent.off(cc.SystemEvent.EventType.KEY_UP,   this.onKeyUp,   this);
     cc.director.off(cc.Director.EVENT_AFTER_SCENE_LAUNCH, this.rescan, this);
+    if (this._docKeyHandler && typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._docKeyHandler, true);
+      this._docKeyHandler = null;
+    }
     if (FocusManager._instance === this) { FocusManager._instance = null; }
   }
 
@@ -78,6 +103,14 @@ export default class FocusManager extends cc.Component {
 
     this.focusedIndex = this.focusables.length > 0 ? 0 : -1;
     this.refreshIndicator();
+
+    // Push native focus to the first focusable so the HTML <input> behind an
+    // EditBox actually receives keystrokes immediately — without this, the
+    // yellow border appears on the Email field but typing does nothing until
+    // the user presses Tab once.
+    if (this.focusedIndex >= 0) {
+      this.tryNativeFocus(this.focusables[this.focusedIndex]);
+    }
   }
 
   private collect(node: cc.Node) {
@@ -150,9 +183,22 @@ export default class FocusManager extends cc.Component {
   // For cc.EditBox the underlying HTML input lives at ._impl._edTxt
   // in Cocos 2.4.x. Focusing it lets the user start typing immediately
   // when Tab lands on the field.
+  //
+  // When we move TO a non-EditBox (a button), we also blur whatever HTML
+  // element currently holds DOM focus — otherwise the previously-focused
+  // <input> keeps receiving keystrokes even though the logical focus has
+  // moved on, and Tab inside that input still follows the browser's order.
   private tryNativeFocus(node: cc.Node) {
     const eb = node.getComponent(cc.EditBox) as any;
-    if (!eb) { return; }
+    if (!eb) {
+      if (typeof document !== "undefined" && document.activeElement) {
+        const ae = document.activeElement as HTMLElement;
+        if (ae && typeof ae.blur === "function") {
+          try { ae.blur(); } catch (e) { /* ignore */ }
+        }
+      }
+      return;
+    }
     const impl = eb._impl;
     const input = impl && (impl._edTxt || impl._edFnt);
     if (input && typeof input.focus === "function") {
@@ -165,10 +211,16 @@ export default class FocusManager extends cc.Component {
   private ensureIndicator(): cc.Node {
     if (this.indicator && this.indicator.isValid) { return this.indicator; }
     const n = new cc.Node("FocusBorder");
-    const g = n.addComponent(cc.Graphics);
-    g.strokeColor = cc.Color.YELLOW;
-    g.lineWidth = 3;
+    n.addComponent(cc.Graphics);
     this.indicator = n;
+    // Gentle breathing pulse so the focused element is unmissable even at
+    // low viewport sizes. ~0.6 s per phase = noticeable but not distracting.
+    cc.tween(n)
+      .to(0.6, { opacity: 160 })
+      .to(0.6, { opacity: 255 })
+      .union()
+      .repeatForever()
+      .start();
     return n;
   }
 
@@ -191,11 +243,28 @@ export default class FocusManager extends cc.Component {
     ind.anchorY = cur.anchorY;
     ind.zIndex = (cur.zIndex || 0) + 1;
 
-    const w = cur.width  + 8;
-    const h = cur.height + 8;
+    // Two-layer border: chunky yellow outer + thin white inner so it pops
+    // against any background colour. 12 px padding clearly separates the
+    // border from the focused element.
+    const pad = 12;
+    const w = cur.width  + pad;
+    const h = cur.height + pad;
+    const x0 = -w * cur.anchorX;
+    const y0 = -h * cur.anchorY;
     const g = ind.getComponent(cc.Graphics);
     g.clear();
-    g.rect(-w * cur.anchorX, -h * cur.anchorY, w, h);
+
+    // Outer yellow
+    g.strokeColor = cc.Color.YELLOW;
+    g.lineWidth = 5;
+    g.rect(x0, y0, w, h);
+    g.stroke();
+
+    // Inner white (inset 3 px)
+    const inset = 3;
+    g.strokeColor = cc.Color.WHITE;
+    g.lineWidth = 2;
+    g.rect(x0 + inset, y0 + inset, w - inset * 2, h - inset * 2);
     g.stroke();
   }
 }

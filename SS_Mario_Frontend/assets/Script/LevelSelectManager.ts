@@ -34,6 +34,7 @@ export default class LevelSelectManager extends cc.Component {
 
   private level1Button: cc.Button  = null;
   private level2Button: cc.Button  = null;
+  private logoutButton: cc.Button  = null;
   private recordText1:  cc.Label   = null;
   private recordText2:  cc.Label   = null;
   private lb1ItemLabel: cc.Label   = null;
@@ -87,9 +88,15 @@ export default class LevelSelectManager extends cc.Component {
     const lb2Item = cc.find("Level2/LeaderBoard2/view/content/item", c);
     if (lb2Item) { this.lb2ItemLabel = lb2Item.getComponent(cc.Label); }
 
+    // Logout button — added so the full login → logout cycle can be done
+    // from the keyboard. FocusManager will auto-include it in tab order.
+    const lo = cc.find("LogoutButton", c);
+    if (lo) { this.logoutButton = lo.getComponent(cc.Button); }
+
     // Warnings
     if (!this.level1Button)  { cc.warn("[LevelSelect] Level1Button not found"); }
     if (!this.level2Button)  { cc.warn("[LevelSelect] Level2Button not found"); }
+    if (!this.logoutButton)  { cc.warn("[LevelSelect] LogoutButton not found (add a Button named 'LogoutButton' under Canvas)"); }
     if (!this.recordText1)   { cc.warn("[LevelSelect] RecordText1 not found"); }
     if (!this.recordText2)   { cc.warn("[LevelSelect] RecordText2 not found"); }
     if (!this.lb1ItemLabel)  { cc.warn("[LevelSelect] LeaderBoard1 item label not found"); }
@@ -105,6 +112,9 @@ export default class LevelSelectManager extends cc.Component {
     if (this.level2Button) {
       this.level2Button.node.on("click", this.onLevel2Click, this);
     }
+    if (this.logoutButton) {
+      this.logoutButton.node.on("click", this.onLogoutClick, this);
+    }
   }
 
   onLevel1Click() {
@@ -113,6 +123,19 @@ export default class LevelSelectManager extends cc.Component {
 
   onLevel2Click() {
     cc.director.loadScene("Level2");
+  }
+
+  onLogoutClick() {
+    // Sign out, then return to StartScene. The FocusManager singleton
+    // persists across the scene change and will rescan StartScene
+    // automatically on EVENT_AFTER_SCENE_LAUNCH.
+    Auth.logout().then(function () {
+      cc.director.loadScene("StartScene");
+    }).catch(function (e: any) {
+      cc.warn("[LevelSelect] logout failed:", e);
+      // Best-effort: still send the user back to the login screen.
+      cc.director.loadScene("StartScene");
+    });
   }
 
   // ─── leaderboard loading ─────────────────────────────────────────────────────
