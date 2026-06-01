@@ -1,164 +1,325 @@
-const A11y      = require("AccessibilitySettings");
-const A11yBridge = require("A11yBridge");
+const A11y = require("AccessibilitySettings");
 
 const { ccclass } = cc._decorator;
 
-// Visual focus indicator for keyboard navigation.
+const KEY_UP    = cc.macro.KEY.up;
+const KEY_DOWN  = cc.macro.KEY.down;
+const KEY_ENTER = cc.macro.KEY.enter;
+const KEY_SPACE = cc.macro.KEY.space;
+const KEY_SLASH = 191;   // "/" on most layouts
+
+// Keyboard-only menu navigation for StartScene and LevelSelectScene.
 //
-// Bypass strategy: cc.systemEvent doesn't expose the raw KeyboardEvent so
-// we can't preventDefault — and the canvas can't receive native focus —
-// so all keyboard nav goes through A11yBridge's invisible DOM buttons
-// instead. The browser handles Tab/Enter/Space natively (correct focus
-// order, ARIA, preventDefault, IME safety, the lot).
+//   /       → toggle accessibility mode on / off
+//   ↑ ↓     → move focus between buttons / input fields
+//   Enter   → activate focused button, or begin typing in focused input
 //
-// What's left for FocusManager: paint a Cocos-side yellow border on the
-// cc.Button that matches whichever DOM bridge button currently has focus,
-// so sighted keyboard users see where they are. Also draws the border on
-// focused cc.EditBox (already a native input).
+// Only active when focusable nodes (cc.Button / cc.EditBox) exist in the
+// scene. In gameplay scenes (Level1 etc.) the list is empty so ↑↓ pass
+// straight through to PlayerController.
 
 @ccclass
 export default class FocusManager extends cc.Component {
 
-  private static _instance: FocusManager = null;
+  private static _inst: FocusManager = null;
 
-  /** Idempotent: creates the persistent FocusManager node if it doesn't exist. */
   static ensure(): FocusManager {
-    if (FocusManager._instance && FocusManager._instance.isValid) {
-      return FocusManager._instance;
+    if (FocusManager._inst && FocusManager._inst.isValid) {
+      return FocusManager._inst;
     }
-    const scene = cc.director.getScene();
+    var scene = cc.director.getScene();
     if (!scene) { return null; }
-    const node = new cc.Node("FocusManager");
+    var node = new cc.Node("FocusManager");
     scene.addChild(node);
-    try { cc.game.addPersistRootNode(node); }
-    catch (e) { cc.warn("[FocusManager] addPersistRootNode failed:", e); }
-    const comp = node.addComponent(FocusManager);
-    FocusManager._instance = comp;
+    try { cc.game.addPersistRootNode(node); } catch (e) { /* ignore */ }
+    var comp = node.addComponent(FocusManager);
+    FocusManager._inst = comp;
     return comp;
   }
 
   // ─── state ───────────────────────────────────────────────────────────────────
 
-  private indicator: cc.Node = null;
-  private focused: cc.Node = null;
-  private unsubBridge: () => void = null;
-  private unsubA11y: () => void = null;
-  private domFocusInHandler: (e: FocusEvent) => void = null;
+  private items: cc.Node[] = [];
+  private idx: number = -1;
+  private active: boolean = false;
+  private border: cc.Node = null;
+  private hintLabel: cc.Label = null;
+  private _docKeyHandler: (e: KeyboardEvent) => void = null;
+
+  private static MSG_OFF = "按 / 開啟無障礙導航 · ↑↓ 上下鍵切換 · Enter 確認";
+  private static MSG_ON  = "鍵盤導航模式已啟動 · ↑↓ 上下鍵切換 · Enter 確認";
+
+  // Keys whose browser default (page scroll, history nav) we always block
+  // while the game is running.
+  private static BLOCK_KEYS: { [k: string]: boolean } = {
+    "ArrowUp": true, "ArrowDown": true, "ArrowLeft": true, "ArrowRight": true,
+    " ": true,       // Space also scrolls the page
+  };
 
   // ─── lifecycle ───────────────────────────────────────────────────────────────
 
   onLoad() {
-    // Hook the bridge's focus events for buttons.
-    this.unsubBridge = A11yBridge.onFocusChange((node: cc.Node) => {
-      this.setFocused(node);
-    });
+    this.active = !!A11y.get("a11yModeActive");
+    cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKey, this);
+    cc.director.on(cc.Director.EVENT_AFTER_SCENE_LAUNCH, this.rescan, this);
 
-    // For cc.EditBox: native <input> elements fire focusin too. Reflect
-    // them in our Cocos-side border so all focusable controls look the same.
-    if (typeof document !== "undefined") {
-      this.domFocusInHandler = (e: FocusEvent) => {
-        const target = e.target as HTMLElement;
-        if (!target || (target as any).dataset && (target as any).dataset.bridge) {
-          // Bridge buttons go through A11yBridge.onFocusChange already.
-          return;
+    // Document-level handler that solves two problems at once:
+    //   1. preventDefault on arrow/space keys so the browser doesn't scroll
+    //      the page or navigate history.
+    //   2. When DOM focus drifts to <body> (e.g. after an EditBox blur or
+    //      the user clicks outside the canvas), pull it back to the canvas
+    //      so cc.systemEvent keeps receiving keyboard events.
+    //
+    // We only block defaults when the active element is NOT an <input> or
+    // <textarea> — otherwise normal typing inside an EditBox would break.
+    if (cc.sys.isBrowser && typeof document !== "undefined") {
+      var self = this;
+      this._docKeyHandler = function (e: KeyboardEvent) {
+        var tag = "";
+        if (document.activeElement) {
+          tag = document.activeElement.tagName || "";
         }
-        const ccNode = this.findCcNodeForDomInput(target);
-        if (ccNode) { this.setFocused(ccNode); }
+        var isTyping = (tag === "INPUT" || tag === "TEXTAREA");
+
+        // If focus is on <body> or <html>, shove it back to the canvas so
+        // Cocos receives the event.
+        if (!isTyping && cc.game.canvas && typeof cc.game.canvas.focus === "function") {
+          cc.game.canvas.focus();
+        }
+
+        // Block browser defaults for game keys (but not while typing).
+        if (!isTyping && FocusManager.BLOCK_KEYS[e.key]) {
+          e.preventDefault();
+        }
+
+        // Always block "/" default (Quick Find in Firefox) regardless.
+        if (e.key === "/") {
+          e.preventDefault();
+        }
       };
-      document.addEventListener("focusin", this.domFocusInHandler, true);
+      document.addEventListener("keydown", this._docKeyHandler, true);
     }
 
-    // Refresh the border when the user toggles its visibility in settings.
-    this.unsubA11y = A11y.subscribe((key: string) => {
-      if (key === "showFocusIndicator" || key === null) { this.refresh(); }
-    });
+    this.rescan();
   }
 
   onDestroy() {
-    if (this.unsubBridge) { this.unsubBridge(); this.unsubBridge = null; }
-    if (this.unsubA11y)   { this.unsubA11y();   this.unsubA11y   = null; }
-    if (typeof document !== "undefined" && this.domFocusInHandler) {
-      document.removeEventListener("focusin", this.domFocusInHandler, true);
-      this.domFocusInHandler = null;
+    cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKey, this);
+    cc.director.off(cc.Director.EVENT_AFTER_SCENE_LAUNCH, this.rescan, this);
+    if (this._docKeyHandler && typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._docKeyHandler, true);
+      this._docKeyHandler = null;
     }
-    if (FocusManager._instance === this) { FocusManager._instance = null; }
+    if (FocusManager._inst === this) { FocusManager._inst = null; }
   }
 
-  update(_dt: number) {
-    // Keep the indicator stuck to the focused node — it may animate.
-    if (this.focused && this.focused.isValid && this.indicator && this.indicator.isValid) {
-      this.position(this.focused);
+  // ─── scan scene for focusable nodes ──────────────────────────────────────────
+
+  rescan() {
+    this.items = [];
+    var scene = cc.director.getScene();
+    if (scene) { this.collect(scene as any as cc.Node); }
+
+    // Remove our own nodes from the list.
+    var self = this;
+    this.items = this.items.filter(function (n) {
+      return n !== self.node && n !== self.border;
+    });
+
+    // Sort top-to-bottom (Y desc), left-to-right (X asc).
+    this.items.sort(function (a, b) {
+      var aw = a.convertToWorldSpaceAR(cc.v2(0, 0));
+      var bw = b.convertToWorldSpaceAR(cc.v2(0, 0));
+      if (Math.abs(aw.y - bw.y) > 4) { return bw.y - aw.y; }
+      return aw.x - bw.x;
+    });
+
+    this.idx = this.items.length > 0 ? 0 : -1;
+    this.showBorder();
+    this.findHintLabel();
+    this.updateHint();
+
+    if (this.active && this.idx >= 0) {
+      this.nativeFocus(this.items[this.idx]);
     }
   }
 
-  // ─── focus state ─────────────────────────────────────────────────────────────
-
-  private setFocused(node: cc.Node) {
-    this.focused = node;
-    this.refresh();
+  private collect(node: cc.Node) {
+    if (!node || !node.active) { return; }
+    if (node.getComponent(cc.Button) || node.getComponent(cc.EditBox)) {
+      this.items.push(node);
+    }
+    var ch = node.children;
+    for (var i = 0; i < ch.length; i++) { this.collect(ch[i]); }
   }
 
-  private refresh() {
-    const show = A11y.get("showFocusIndicator");
-    if (!show || !this.focused || !this.focused.isValid) {
-      if (this.indicator && this.indicator.isValid) { this.indicator.active = false; }
+  // ─── keyboard ────────────────────────────────────────────────────────────────
+
+  private onKey(e: cc.Event.EventKeyboard) {
+    if (e.keyCode === KEY_SLASH) {
+      this.active = !this.active;
+      A11y.set("a11yModeActive", this.active);
+      cc.log("[A11y] " + (this.active ? "ON (↑↓ + Enter)" : "OFF"));
+      if (this.active && this.idx < 0 && this.items.length > 0) {
+        this.idx = 0;
+      }
+      if (!this.active) { this.nativeBlur(); }
+      this.showBorder();
+      this.updateHint();
       return;
     }
-    this.ensureIndicator();
-    this.indicator.active = true;
-    this.position(this.focused);
-  }
 
-  private ensureIndicator() {
-    if (this.indicator && this.indicator.isValid) { return; }
-    const n = new cc.Node("FocusBorder");
-    const g = n.addComponent(cc.Graphics);
-    g.strokeColor = cc.Color.YELLOW;
-    g.lineWidth = 3;
-    this.indicator = n;
-  }
+    if (!this.active || this.items.length === 0) { return; }
 
-  private position(target: cc.Node) {
-    if (!target || !target.parent) { return; }
-    const ind = this.indicator;
-    if (ind.parent !== target.parent) {
-      ind.removeFromParent(false);
-      target.parent.addChild(ind);
+    if (e.keyCode === KEY_DOWN)  { this.move(1);  return; }
+    if (e.keyCode === KEY_UP)    { this.move(-1); return; }
+    if (e.keyCode === KEY_ENTER || e.keyCode === KEY_SPACE) {
+      this.activate();
+      return;
     }
-    ind.x = target.x;
-    ind.y = target.y;
-    ind.anchorX = target.anchorX;
-    ind.anchorY = target.anchorY;
-    ind.zIndex = (target.zIndex || 0) + 1;
+  }
 
-    const w = target.width + 8;
-    const h = target.height + 8;
-    const g = ind.getComponent(cc.Graphics);
+  // ─── focus movement ──────────────────────────────────────────────────────────
+
+  private cur(): cc.Node {
+    if (this.idx < 0 || this.idx >= this.items.length) { return null; }
+    var n = this.items[this.idx];
+    return (n && n.isValid && n.active) ? n : null;
+  }
+
+  private move(delta: number) {
+    var len = this.items.length;
+    if (len === 0) { return; }
+    var i = this.idx;
+    for (var step = 0; step < len; step++) {
+      i = (i + delta + len) % len;
+      var n = this.items[i];
+      if (n && n.isValid && n.active) {
+        this.idx = i;
+        this.showBorder();
+        this.nativeFocus(n);
+        return;
+      }
+    }
+  }
+
+  private activate() {
+    var node = this.cur();
+    if (!node) { return; }
+    var eb = node.getComponent(cc.EditBox);
+    if (eb) {
+      // setFocus() tells Cocos to enter editing state (show cursor, accept
+      // keyboard input). nativeFocus then pushes DOM focus to the underlying
+      // <input> so keystrokes actually reach it.
+      if (typeof eb.setFocus === "function") {
+        eb.setFocus();
+      }
+      this.nativeFocus(node);
+      return;
+    }
+    var btn = node.getComponent(cc.Button);
+    if (btn && btn.interactable) {
+      node.emit("click", btn);
+    }
+  }
+
+  // ─── native HTML focus for EditBox ───────────────────────────────────────────
+
+  private nativeFocus(node: cc.Node) {
+    var eb = node.getComponent(cc.EditBox) as any;
+    if (!eb) { this.nativeBlur(); return; }
+    var impl = eb._impl;
+    var input = impl && (impl._edTxt || impl._edFnt);
+    if (input && typeof input.focus === "function") {
+      try { input.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  private nativeBlur() {
+    if (typeof document === "undefined") { return; }
+    var ae = document.activeElement as HTMLElement;
+    if (ae && typeof ae.blur === "function") {
+      try { ae.blur(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  // ─── double-border indicator ─────────────────────────────────────────────────
+
+  private ensureBorder(): cc.Node {
+    if (this.border && this.border.isValid) { return this.border; }
+    this.border = new cc.Node("FocusBorder");
+    this.border.addComponent(cc.Graphics);
+    return this.border;
+  }
+
+  private showBorder() {
+    var target = this.cur();
+    if (!this.active || !target) {
+      if (this.border && this.border.isValid) { this.border.active = false; }
+      return;
+    }
+
+    var b = this.ensureBorder();
+    if (b.parent !== target.parent) {
+      b.removeFromParent(false);
+      target.parent.addChild(b);
+    }
+    b.active = true;
+    b.x = target.x;
+    b.y = target.y;
+    b.anchorX = target.anchorX;
+    b.anchorY = target.anchorY;
+    b.zIndex = (target.zIndex || 0) + 1;
+
+    var pad = 10;
+    var w = target.width  + pad;
+    var h = target.height + pad;
+    var x0 = -w * target.anchorX;
+    var y0 = -h * target.anchorY;
+
+    var g = b.getComponent(cc.Graphics);
     g.clear();
-    g.rect(-w * target.anchorX, -h * target.anchorY, w, h);
+
+    // Outer border — bright yellow, 4 px
+    g.strokeColor = cc.Color.YELLOW;
+    g.lineWidth = 4;
+    g.rect(x0, y0, w, h);
+    g.stroke();
+
+    // Inner border — white, 2 px (inset 4 px)
+    g.strokeColor = cc.Color.WHITE;
+    g.lineWidth = 2;
+    g.rect(x0 + 4, y0 + 4, w - 8, h - 8);
     g.stroke();
   }
 
-  // Map a focused <input> back to its cc.EditBox node. In Cocos 2.4 the
-  // EditBox's underlying input is stored at editBox._impl._edTxt — we
-  // walk the scene tree comparing references.
-  private findCcNodeForDomInput(input: HTMLElement): cc.Node {
-    const scene = cc.director.getScene();
-    if (!scene) { return null; }
-    return this.search(scene as any as cc.Node, input);
+  // ─── hint label ──────────────────────────────────────────────────────────────
+
+  private findHintLabel() {
+    this.hintLabel = null;
+    var scene = cc.director.getScene();
+    if (!scene) { return; }
+    // Search for a node named "A11yHint" anywhere in the scene.
+    var node = this.searchByName(scene as any as cc.Node, "A11yHint");
+    if (node) {
+      var label = node.getComponent(cc.Label);
+      if (label) { this.hintLabel = label; }
+    }
   }
 
-  private search(root: cc.Node, input: HTMLElement): cc.Node {
+  private searchByName(root: cc.Node, name: string): cc.Node {
     if (!root) { return null; }
-    const eb = root.getComponent(cc.EditBox) as any;
-    if (eb && eb._impl && (eb._impl._edTxt === input || eb._impl._edFnt === input)) {
-      return root;
-    }
-    const ch = root.children;
-    for (let i = 0; i < ch.length; i++) {
-      const found = this.search(ch[i], input);
+    if (root.name === name) { return root; }
+    var ch = root.children;
+    for (var i = 0; i < ch.length; i++) {
+      var found = this.searchByName(ch[i], name);
       if (found) { return found; }
     }
     return null;
+  }
+
+  private updateHint() {
+    if (!this.hintLabel || !this.hintLabel.isValid) { return; }
+    this.hintLabel.string = this.active ? FocusManager.MSG_ON : FocusManager.MSG_OFF;
   }
 }

@@ -3244,7 +3244,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 616.74,
+      "width": 591.69,
       "height": 50.4
     },
     "_anchorPoint": {
@@ -3296,8 +3296,8 @@
     ],
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
-    "_string": "按 Esc 開啟無障礙設定 · Tab 切換 · Enter 確認",
-    "_N$string": "按 Esc 開啟無障礙設定 · Tab 切換 · Enter 確認",
+    "_string": "按/開啟無障礙設定 · 方向鍵切換 · Enter 確認",
+    "_N$string": "按/開啟無障礙設定 · 方向鍵切換 · Enter 確認",
     "_fontSize": 30,
     "_lineHeight": 40,
     "_enableWrapText": true,

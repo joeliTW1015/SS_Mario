@@ -1,10 +1,6 @@
 const Auth = require("Auth");
 const Firebase = require("Firebase");
 const Leaderboard = require("Leaderboard");
-const FocusManager  = require("FocusManager");
-const SettingsPanel = require("SettingsPanel");
-const A11yBridge    = require("A11yBridge");
-const AudioRouter   = require("AudioRouter");
 
 const { ccclass, property } = cc._decorator;
 
@@ -34,6 +30,9 @@ export default class GameManager extends cc.Component {
   // ─── inspector properties ────────────────────────────────────────────────────
 
   @property(cc.Node)
+  startPanel: cc.Node = null;
+
+  @property(cc.Node)
   gameOverPanel: cc.Node = null;
 
   @property(cc.Node)
@@ -56,14 +55,11 @@ export default class GameManager extends cc.Component {
   lives: number = 3;
 
   @property
-  timerSeconds: number = 200;
-
-  @property
   currentLevel: number = 1;
 
   playerState: string = "SMALL";   // "SMALL" | "BIG" | "DEAD"
 
-  private initialTimerSeconds: number = 200;
+  timerSeconds: number = 0;        // counts UP from 0
   private timerRunning: boolean = false;
   private bgmId: number = -1;
   private gameEnded: boolean = false;
@@ -75,17 +71,14 @@ export default class GameManager extends cc.Component {
 
   onLoad() {
     _instance = this;
-    this.initialTimerSeconds = this.timerSeconds;
 
     // Restore the persisted life count (carries across loadScene reloads).
     // First-ever scene load: _persistedLives is DEFAULT_LIVES.
     this.lives = _persistedLives;
 
-    // Restore the persisted clock if a previous life left one. On a fresh game
-    // it's still -1, so the @property default from the editor stays in effect.
-    if (_persistedTimer >= 0) {
-      this.timerSeconds = _persistedTimer;
-    }
+    // Restore the persisted elapsed time so respawning doesn't reset the clock.
+    // Sentinel -1 means fresh game → start from 0.
+    this.timerSeconds = _persistedTimer >= 0 ? _persistedTimer : 0;
 
     // Enable Box2D physics
     const physics = cc.director.getPhysicsManager();
@@ -96,6 +89,9 @@ export default class GameManager extends cc.Component {
     if (this.gameOverPanel) { this.gameOverPanel.active = false; }
     if (this.winPanel)      { this.winPanel.active = false; }
 
+    // Show "Game Start" panel for 1 second, then hide and begin.
+    if (this.startPanel) { this.startPanel.active = true; }
+
     // Init HUD
     this.updateLivesLabel();
     this.updateTimerLabel();
@@ -105,12 +101,23 @@ export default class GameManager extends cc.Component {
       this.bgmId = cc.audioEngine.playMusic(this.bgm, true);
     }
 
-    // Load saved progress then start timer
+    // Load saved progress, then wait for the start panel to finish before
+    // starting the timer.
     const self = this;
     this.loadProgress().then(function () {
-      self.timerRunning = true;
+      self.scheduleOnce(function () {
+        if (self.startPanel && self.startPanel.isValid) {
+          self.startPanel.active = false;
+        }
+        self.timerRunning = true;
+      }, 1);
     }).catch(function () {
-      self.timerRunning = true;
+      self.scheduleOnce(function () {
+        if (self.startPanel && self.startPanel.isValid) {
+          self.startPanel.active = false;
+        }
+        self.timerRunning = true;
+      }, 1);
     });
 
     // Auto-attach multiplayer ghost sync so no editor wiring is needed.
@@ -119,16 +126,6 @@ export default class GameManager extends cc.Component {
       this.node.addComponent("MultiplayerSync");
     }
 
-    // Accessibility: enemy proximity audio cues (stereo-positioned). Plus
-    // keyboard focus manager (persists across scenes) and the Esc-toggled
-    // HTML settings overlay.
-    if (!this.node.getComponent("AudioCueManager")) {
-      this.node.addComponent("AudioCueManager");
-    }
-    FocusManager.ensure();
-    SettingsPanel.init();
-    A11yBridge.init();
-    AudioRouter.init();
   }
 
   onDestroy() {
@@ -138,14 +135,8 @@ export default class GameManager extends cc.Component {
   update(dt: number) {
     if (!this.timerRunning || this.gameEnded) { return; }
 
-    this.timerSeconds -= dt;
-    if (this.timerSeconds < 0) { this.timerSeconds = 0; }
+    this.timerSeconds += dt;
     this.updateTimerLabel();
-
-    if (this.timerSeconds <= 0) {
-      this.timerRunning = false;
-      this.triggerPlayerDeath();
-    }
   }
 
   // ─── lives ───────────────────────────────────────────────────────────────────
@@ -175,7 +166,7 @@ export default class GameManager extends cc.Component {
       _persistedTimer = this.timerSeconds;
       const self = this;
       this.scheduleOnce(function () {
-        cc.director.loadScene("Level1");
+        cc.director.loadScene("Level" + self.currentLevel);
       }, 1.5);
     }
   }
@@ -218,7 +209,7 @@ export default class GameManager extends cc.Component {
 
   // Submit completion time to the backend leaderboard
   private submitToLeaderboard() {
-    const elapsed = Math.floor(this.initialTimerSeconds - this.timerSeconds);
+    const elapsed = Math.floor(this.timerSeconds);
     const level   = this.currentLevel;
     Auth.currentUser().then(function (user: any) {
       var name = "anonymous";
@@ -237,7 +228,7 @@ export default class GameManager extends cc.Component {
   // ─── scene navigation ────────────────────────────────────────────────────────
 
   restartLevel() {
-    cc.director.loadScene("Level1");
+    cc.director.loadScene("Level" + this.currentLevel);
   }
 
   goToLevelSelect() {

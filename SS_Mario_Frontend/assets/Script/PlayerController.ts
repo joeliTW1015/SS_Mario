@@ -1,5 +1,4 @@
 import GameManager from "./GameManager";
-const A11y = require("AccessibilitySettings");
 
 const { ccclass, property } = cc._decorator;
 
@@ -208,6 +207,13 @@ export default class PlayerController extends cc.Component {
       const stompedCtrl = other.node.getComponent("GoombaController");
       if (stompedCtrl && stompedCtrl["alive"] === false) { return; }
 
+      // Piranha Plant: invincible — always damage, never stomp.
+      var piranha = other.node.getComponent("PiranhaPlantController");
+      if (piranha) {
+        this.takeDamage();
+        return;
+      }
+
       const selfWorldY  = this.node.convertToWorldSpaceAR(cc.v2(0, 0)).y;
       const otherWorldY = other.node.convertToWorldSpaceAR(cc.v2(0, 0)).y;
 
@@ -377,15 +383,6 @@ export default class PlayerController extends cc.Component {
   }
 
   private startInvincibilityFlash() {
-    // Accessibility: "reduced flashing" mode replaces the 10Hz strobe with
-    // a steady dim opacity. The 10Hz rate sits at the edge of the
-    // photosensitive seizure guidance (WCAG 2.3.1), and this gives the
-    // same "you're invincible" cue without the flicker.
-    if (A11y.get("reducedFlashing")) {
-      this.node.opacity = 150;
-      return;
-    }
-
     let visible = true;
     const self = this;
     const interval = 0.1;

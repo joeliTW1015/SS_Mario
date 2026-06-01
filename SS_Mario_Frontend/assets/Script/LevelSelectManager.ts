@@ -1,9 +1,7 @@
 const Auth        = require("Auth");
 const Leaderboard = require("Leaderboard");
-const FocusManager  = require("FocusManager");
-const SettingsPanel = require("SettingsPanel");
-const A11yBridge    = require("A11yBridge");
-const AudioRouter   = require("AudioRouter");
+const FocusManagerMod = require("FocusManager");
+const FocusManager = FocusManagerMod.default || FocusManagerMod;
 
 const { ccclass, property } = cc._decorator;
 
@@ -56,9 +54,6 @@ export default class LevelSelectManager extends cc.Component {
 
     // Accessibility: keyboard nav + Esc settings overlay on the level menu.
     FocusManager.ensure();
-    SettingsPanel.init();
-    A11yBridge.init();
-    AudioRouter.init();
   }
 
   // ─── node discovery ──────────────────────────────────────────────────────────

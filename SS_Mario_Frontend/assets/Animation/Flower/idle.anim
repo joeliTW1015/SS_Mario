@@ -1,9 +1,9 @@
 {
   "__type__": "cc.AnimationClip",
-  "_name": "walk",
+  "_name": "flower_idle",
   "_objFlags": 0,
   "_native": "",
-  "_duration": 0.7333333333333333,
+  "_duration": 0.36666666666666664,
   "sample": 60,
   "speed": 1,
   "wrapMode": 2,
@@ -12,21 +12,21 @@
       "cc.Sprite": {
         "spriteFrame": [
           {
-            "frame": 0,
+            "frame": 0.016666666666666666,
             "value": {
-              "__uuid__": "ba027897-914f-496d-b673-1729008d3f89"
+              "__uuid__": "16d97269-6ac6-4b30-ad3a-1fd3160276dd"
             }
           },
           {
-            "frame": 0.4,
+            "frame": 0.16666666666666666,
             "value": {
-              "__uuid__": "ea167960-0b0b-450a-ad79-19b8257e18a8"
+              "__uuid__": "fcbde753-602b-47d9-8005-eafdbab168c2"
             }
           },
           {
-            "frame": 0.7166666666666667,
+            "frame": 0.35,
             "value": {
-              "__uuid__": "ba027897-914f-496d-b673-1729008d3f89"
+              "__uuid__": "16d97269-6ac6-4b30-ad3a-1fd3160276dd"
             }
           }
         ]
