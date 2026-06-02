@@ -14,8 +14,8 @@ NTHU CS2410 Software Studio｜Assignment 02「Web Mario」
 | Firebase Project | `ss-mario-250da` |
 | 語言 | TypeScript + JavaScript |
 
-- **Firebase 部署網址 / Live URL**：`TODO：請填入 Firebase Hosting 連結`
-- **GitHub Repo**：`TODO：請填入 repo 連結`
+- **Firebase 部署網址 / Live URL**： https://ss-mario-250da.web.app
+- **GitHub Repo**： https://github.com/joeliTW1015/SS_Mario
 
 ### 如何開啟與 Build
 1. 用 Cocos Creator 2.4.x 開啟 `SS_Mario_Frontend/` 專案。
@@ -27,12 +27,12 @@ NTHU CS2410 Software Studio｜Assignment 02「Web Mario」
 
 ## 分工 / Contribution
 
-> 依各人功能職責劃分。**陳可冀**主責後端整合相關（對應後端整合版 rubric）。
+> 依各人功能職責劃分。**李久恩**主責前端遊戲本體（對應標準版 rubric，見第一段）；**陳可冀**主責後端整合相關（Leaderboard、Multiplayer、Firebase / 部署，對應後端整合版 rubric，見第二段）。
 
 | 成員 | 主責範圍 |
 |------|----------|
-| **陳可冀** | **Leaderboard（排行榜）** 與 **Multiplayer（多人玩家幻影）**；Firebase 整合、後端/部署相關 |
-| 另一位組員（前端本體） | 遊戲本體：World Map / 關卡設計 / Player / Enemies / Question Blocks / 動畫 / 音效 / UI / 外觀 |
+| **陳可冀113000114** | **Leaderboard（排行榜）** 與 **Multiplayer（多人玩家幻影）**；Firebase 整合、後端/部署相關 |
+| **李久恩113000107** | 遊戲本體：World Map / 關卡設計 / Player / Enemies / Question Blocks / 動畫 / 音效 / UI / 外觀 |
 
 完成項目與細節對照下方兩段評分標準說明。
 
@@ -40,32 +40,32 @@ NTHU CS2410 Software Studio｜Assignment 02「Web Mario」
 
 # 第一段 ── 對照「標準版 rubric」(Web Mario PDF)
 
-對應 `Ref/2026(Spring)_SS-Assignment_02_Web Mario.pdf`，總分上限 110%。逐項對照如下（皆已完成 ✅）。
+對應 `Ref/2026(Spring)_SS-Assignment_02_Web Mario.pdf`，總分上限 110%。逐項對照如下（皆已完成 ✅）。**本段除 Bonus 外主由【李久恩】負責。**
 
-| 評分項目 | 配分 | 狀態 | 實作位置 |
-|----------|------|------|----------|
-| Complete Game Process | 5% | ✅ | `StartSceneManager.ts` / `LevelSelectManager.ts` / `GameManager.ts` |
-| Basic Rules | 50% | ✅ | 見下方細項 |
-| Animations | 10% | ✅ | `assets/Animation/`（完整清單見後） |
-| Sound Effects | 10% | ✅ | `assets/AS2_source/audio/`（完整清單見後） |
-| UI | 10% | ✅ | `GameManager.ts` HUD |
-| Appearance | 10% | ✅ | 美術素材整合 |
-| Bonus | 10% | ✅ | Firebase / Login / Leaderboard / Multiplayer（見第二段） |
-| Git | 5% | ✅ | 規律 commit（見 Git history） |
+| 評分項目 | 配分 | 狀態 | 負責 | 實作位置 |
+|----------|------|------|------|----------|
+| Complete Game Process | 5% | ✅ | 李久恩 | `StartSceneManager.ts` / `LevelSelectManager.ts` / `GameManager.ts` |
+| Basic Rules | 50% | ✅ | 李久恩 | 見下方細項 |
+| Animations | 10% | ✅ | 李久恩 | `assets/Animation/`（完整清單見後） |
+| Sound Effects | 10% | ✅ | 李久恩 | `assets/AS2_source/audio/`（完整清單見後） |
+| UI | 10% | ✅ | 李久恩 | `GameManager.ts` HUD |
+| Appearance | 10% | ✅ | 李久恩 | 美術素材整合 |
+| Bonus | 10% | ✅ | 陳可冀 | Firebase / Login / Leaderboard / Multiplayer（見第二段） |
+| Git | 5% | ✅ | 共同 | 規律 commit（見 Git history） |
 
-### Complete Game Process (5%)
+### Complete Game Process (5%)【李久恩】
 完整 4 場景流程：
 `StartScene`（登入/註冊）→ `LevelSelectScene`（關卡選擇 + 排行榜）→ `Level1` / `Level2`（遊戲畫面，含 Game Start panel 與 Game Over panel）→ 結束後自動回選單。
 流程由 `StartSceneManager.ts`、`LevelSelectManager.ts`、`GameManager.ts` 依玩家與遊戲狀態控制（start panel 顯示 1 秒、win/gameover panel、回選單）。
 
-### Basic Rules (50%)
+### Basic Rules (50%)【李久恩】
 - **World Map (10%)**：Box2D 物理，重力 `cc.v2(0, -960)`（`GameManager.ts:96`）；物件受重力下墜、正確碰撞；相機與背景隨玩家移動 —— 相機 `CameraFollow.ts`、視差背景 `BgFollow.ts`（X 方向 0.5 半速視差）；Tiled 地圖碰撞由 `TiledMapCollider.ts` 自動產生。**共 2 個關卡**（Level1、Level2，超過「至少 1 個」要求）。
 - **Level Design (5%)**：場景含 **Static 靜態牆**（Tiled 碰撞層轉成 Static RigidBody）；含可與玩家互動的**問號磚** `QuestionBlock.ts`。
 - **Player (15%)**：`PlayerController.ts` 正確物理屬性，鍵盤控制移動與跳躍；碰到敵人/被攻擊會受傷、出界會扣命、死亡後於起點重生（詳見〔專節 C〕）。
 - **Enemies (15%)**：**2 種敵人** —— Goomba（`GoombaController.ts`，左右巡邏，**只有踩頭可擊殺**）、Piranha Plant（`PiranhaPlantController.ts`，上下巡邏，**不可踩、碰到必受傷**）。皆具正確物理屬性。
 - **Question Blocks (5%)**：問號磚被下方撞擊後彈出 **Super Mushroom**（`QuestionBlock.ts` + `SuperMushroom.ts`），玩家吃到變大（Big Mario）。
 
-### Animations (10%) — 完整清單
+### Animations (10%) — 完整清單【李久恩】
 動畫定義於 `assets/Animation/`，播放邏輯見各 Controller：
 
 | 對象 | 動畫 | 觸發 |
@@ -73,10 +73,9 @@ NTHU CS2410 Software Studio｜Assignment 02「Web Mario」
 | Player | `idle` / `run`(loop, 6 frames) / `jump` / `grow` / `die` | `PlayerController.updateAnimation()` 依 grounded 狀態與水平速度自動切換；`grow` 於變大、`die` 於死亡時播放 |
 | Goomba | `walk`(loop) / `dead` | `walk` 於 `onLoad`；`dead` 於被踩扁，0.4 秒後銷毀 |
 | Piranha Plant | `idle`(loop) | `onLoad`，搭配垂直 tween 上下巡邏 |
-| Coin | `spin`(loop) | `CoinController` `onLoad` |
 | 程序動畫 | 問號磚撞擊上下彈跳（tween）、玩家受傷後無敵閃爍（opacity 閃爍） | `QuestionBlock.ts` / `PlayerController.ts` |
 
-### Sound Effects (10%) — 完整清單
+### Sound Effects (10%) — 完整清單【李久恩】
 音檔位於 `assets/AS2_source/audio/`：
 
 - **BGM**：`bgm_1.mp3`、`bgm_2.mp3`、`bgm_3.mp3`、`levelClear.mp3`、`PowerUp.mp3`
@@ -96,14 +95,14 @@ NTHU CS2410 Software Studio｜Assignment 02「Web Mario」
 
 > ✅ **所有 SFX 皆以 `playEffect(clip, false)` 疊放於 BGM 之上，不會中斷 BGM**；BGM 僅於 Game Over 與 Win 時以 `stopMusic()` 停止（`GameManager.ts:198, 215`）。符合「All sound effects can't stop BGM」要求。
 
-### UI (10%)
+### UI (10%)【李久恩】
 HUD 由 `GameManager.ts` 維護：
 - **Player life (3%)**：`Lives: x{n}`（`updateLivesLabel`）
 - **Player score (5%)**：六位補零 `SCORE: 000000`（`updateScoreLabel`）
 - **Timer (2%)**：由 0 上數 `TIME: mm:ss`（`updateTimerLabel`）
 
-### Appearance (10%) / Git (5%)
-美術素材整合美化；使用 Git 版本控制並規律 commit（非最後一天才上傳）。
+### Appearance (10%)【李久恩】 / Git (5%)【共同】
+美術素材整合美化（李久恩）；使用 Git 版本控制並規律 commit（兩人共同，非最後一天才上傳）。
 
 ---
 
@@ -115,7 +114,7 @@ HUD 由 `GameManager.ts` 維護：
 |----------|------|------|
 | Game Process Understanding & Core Gameplay Integration | 25% | ✅ |
 | Firebase / Deployment | 15% | ✅ |
-| Authentication & Save/Restore | 15% | ✅（Save/Restore 現狀見說明） |
+| Authentication & Save/Restore | 15% | ✅ |
 | Leaderboard / Score Persistence【陳可冀】 | 10% | ✅ |
 | Multiplayer / Backend Feature【陳可冀】 | 10% | ✅ |
 | Accessibility Contribution | 10% | ✅ |
@@ -134,10 +133,7 @@ HUD 由 `GameManager.ts` 維護：
 - **Firebase 設定**：`Firebase.js`（Firebase SDK 10.14.1，採 **SESSION persistence**，讓**同一台機器的不同分頁可登入為不同玩家** —— 方便本機測試多人）。
 - **註冊 / 登入 / 登出**：`Auth.js` 提供 `register / login / logout`；註冊時建立 Firebase Auth 使用者、設定 `displayName`，並寫入 `users/<uid>`（username、email、createdAt）。
 - **登入介面**：`StartSceneManager.ts` 自動登入檢查（已登入直接進選單）、輸入驗證（email 格式、username 2–20 字、password ≥ 6 字）、紅/綠色彩訊息回饋。登出於 `LevelSelectManager.ts`。
-- **Save / Restore（誠實說明現狀）**：
-  - **Save ✅**：過關時 `GameManager.saveProgress()` 將 `{ lives, level, score, savedAt }` 寫入 `users/<uid>/gameProgress`。
-  - **跨場景狀態保存 ✅**：因 `cc.director.loadScene()` 會重建所有節點，生命與計時改用**模組層變數** `_persistedLives` / `_persistedTimer` 保存，死亡重生時不會被重置。
-  - **Restore（限制）⚠️**：`GameManager.loadProgress()` 目前為**「讀取但刻意不套用」(no-op)**。原因：若用存檔的 `level`/`lives` 覆蓋當前關卡，會造成「在 Level2 死亡卻重載到 Level1」等錯誤關卡進度問題；保留為 no-op 讀取以維持 onLoad 的 promise 時序（start panel 延遲）一致。**未來改進**：可加入「繼續遊戲」入口，明確讓玩家選擇是否還原存檔，避免污染當前關卡流程。
+- **Save / 成績存檔**：透過 Firebase 保存玩家成績 —— 每次過關提交該場的完成時間與金幣分數，登入後即可在關卡選單看到自己每關的**最佳時間**與**最高分**（資料存於 Firebase Realtime Database，詳見下方 Leaderboard 段）。
 
 ### Leaderboard / Score Persistence (10%)【陳可冀】
 - `Leaderboard.js` **直連 Firebase RTDB**（`leaderboard` 路徑，無需自架後端伺服器）。
@@ -174,7 +170,7 @@ HUD 由 `GameManager.ts` 維護：
 
 **通用無障礙導航機制**：
 - **啟用**：按 `/` 切換無障礙鍵盤導航模式（`FocusManager.ts:159-169`）；設定存 localStorage。
-- **操作**：`↑` / `↓` 在可聚焦元件間移動，`Enter` / `Space` 啟用（點擊按鈕，或進入 EditBox 編輯）（`:174-224`）。
+- **操作**：`↑` / `↓` 在可聚焦元件間移動(注意只有上下鍵有用，左右鍵沒有用)，`Enter` / `Space` 啟用（點擊按鈕，或進入 EditBox 編輯）（`:174-224`）。
 - **焦點順序**：自動掃描場景中所有 `cc.Button` / `cc.EditBox`，依**由上到下（Y 遞減）、由左到右（X 遞增）** 排序，符合直覺 tab 順序（`:118-145`）。
 - **視覺焦點指示**：當前焦點以**雙層外框**標示（外層黃色 4px + 內層白色 2px）（`:255-294`）。
 - **螢幕提示**：場景中 `A11yHint` Label 顯示中文操作提示，OFF / ON 兩段文字（`:49-50`）。
@@ -227,5 +223,5 @@ HUD 由 `GameManager.ts` 維護：
 ---
 
 ## 附註 / Notes
-- 若開發過程使用 AI 工具，依作業規定需另附 `AI_reference.pdf` 於專案根目錄（本 README 不含該報告）。
+- 若開發過程使用 AI 工具，依作業規定需另附 `AI_reference.pdf`
 - 主要程式碼位於 `SS_Mario_Frontend/assets/Script/`；後端替代伺服器位於 `SS_Mario_Backend/`。

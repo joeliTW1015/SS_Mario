@@ -20,16 +20,6 @@ export default class CoinController extends cc.Component {
   onLoad() {
     var rb = this.getComponent(cc.RigidBody);
     if (rb) { rb.enabledContactListener = true; }
-
-    // Optional spin animation (clip named "spin").
-    var anim = this.getComponent(cc.Animation);
-    if (anim) {
-      var st = anim.getAnimationState("spin");
-      if (st) {
-        st.wrapMode = cc.WrapMode.Loop;
-        anim.play("spin");
-      }
-    }
   }
 
   onBeginContact(contact: cc.PhysicsContact, self: cc.PhysicsCollider, other: cc.PhysicsCollider) {
