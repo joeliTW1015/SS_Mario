@@ -53,6 +53,9 @@ export default class GameManager extends cc.Component {
   @property(cc.AudioClip)
   sfxDeath: cc.AudioClip = null;
 
+  @property(cc.AudioClip)
+  sfxWin: cc.AudioClip = null;
+
   // ─── game state ──────────────────────────────────────────────────────────────
 
   lives: number = 3;
@@ -210,6 +213,7 @@ export default class GameManager extends cc.Component {
     this.gameEnded = true;
     this.timerRunning = false;
     cc.audioEngine.stopMusic();
+    if (this.sfxWin) { cc.audioEngine.playEffect(this.sfxWin, false); }
     if (this.winPanel) { this.winPanel.active = true; }
     this.saveProgress();
     this.submitToLeaderboard();
@@ -282,15 +286,15 @@ export default class GameManager extends cc.Component {
           .ref("users/" + user.uid + "/gameProgress")
           .once("value")
           .then(function (snap) {
-            const data = snap.val();
-            if (!data) { return; }
-            if (typeof data.lives === "number" && data.lives > 0) {
-              self.lives = data.lives;
-              self.updateLivesLabel();
-            }
-            if (typeof data.level === "number") {
-              self.currentLevel = data.level;
-            }
+            // NOTE: We intentionally do NOT overwrite lives or currentLevel
+            // from saved progress here. The current run's truth comes from
+            // the scene's own currentLevel @property (Level1=1, Level2=2) and
+            // the module-level _persistedLives. Restoring a stale saved
+            // `level` here caused the player to respawn in the wrong level
+            // (e.g. die in Level2 → reload Level1), and a stale `lives` would
+            // fight the cross-reload persistence. Kept as a no-op read so the
+            // onLoad promise timing (start-panel delay) is unchanged.
+            return snap;
           });
       });
     });

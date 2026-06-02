@@ -809,8 +809,8 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 209.73,
-      "height": 50.4
+      "width": 157.29,
+      "height": 97.8
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -822,7 +822,7 @@
       "ctor": "Float64Array",
       "array": [
         0,
-        55.247,
+        45.363,
         0,
         0,
         0,
@@ -861,10 +861,10 @@
     ],
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
-    "_string": "Time: 00:00",
-    "_N$string": "Time: 00:00",
-    "_fontSize": 40,
-    "_lineHeight": 40,
+    "_string": "Time: 00:00\nScore:0\n",
+    "_N$string": "Time: 00:00\nScore:0\n",
+    "_fontSize": 30,
+    "_lineHeight": 30,
     "_enableWrapText": true,
     "_N$file": null,
     "_isSystemFontUsed": true,
@@ -2062,8 +2062,8 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 209.73,
-      "height": 50.4
+      "width": 157.29,
+      "height": 97.8
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -2075,7 +2075,7 @@
       "ctor": "Float64Array",
       "array": [
         0,
-        55.247,
+        45.363,
         0,
         0,
         0,
@@ -2114,10 +2114,10 @@
     ],
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
-    "_string": "Time: 00:00",
-    "_N$string": "Time: 00:00",
-    "_fontSize": 40,
-    "_lineHeight": 40,
+    "_string": "Time: 00:00\nScore:0\n",
+    "_N$string": "Time: 00:00\nScore:0\n",
+    "_fontSize": 30,
+    "_lineHeight": 30,
     "_enableWrapText": true,
     "_N$file": null,
     "_isSystemFontUsed": true,
