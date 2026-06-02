@@ -25,6 +25,10 @@ function formatDate(ts: number): string {
   return y + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
 }
 
+// Placeholder for a level the player hasn't completed yet — also shown while
+// leaderboard data is still loading and when no user is logged in.
+const EMPTY_RECORD = "Time: --:--\nScore: 0";
+
 // ─── component ───────────────────────────────────────────────────────────────
 
 @ccclass
@@ -143,8 +147,8 @@ export default class LevelSelectManager extends cc.Component {
     // Show loading state
     if (this.lb1ItemLabel) { this.lb1ItemLabel.string = "Loading..."; }
     if (this.lb2ItemLabel) { this.lb2ItemLabel.string = "Loading..."; }
-    if (this.recordText1)  { this.recordText1.string = "Time: --:--"; }
-    if (this.recordText2)  { this.recordText2.string = "Time: --:--"; }
+    if (this.recordText1)  { this.recordText1.string = EMPTY_RECORD; }
+    if (this.recordText2)  { this.recordText2.string = EMPTY_RECORD; }
 
     const self = this;
 
@@ -223,7 +227,12 @@ export default class LevelSelectManager extends cc.Component {
     var self = this;
 
     Auth.currentUser().then(function (user: any) {
-      if (!user) { return; }
+      if (!user) {
+        // Not logged in → no personal record to show; keep the placeholder.
+        if (self.recordText1) { self.recordText1.string = EMPTY_RECORD; }
+        if (self.recordText2) { self.recordText2.string = EMPTY_RECORD; }
+        return;
+      }
       var username = user.username || user.email || "";
 
       // Find best (lowest score) entry matching this user for each level
