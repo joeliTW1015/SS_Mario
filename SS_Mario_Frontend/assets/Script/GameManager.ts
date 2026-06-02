@@ -44,6 +44,9 @@ export default class GameManager extends cc.Component {
   @property(cc.Label)
   timerLabel: cc.Label = null;
 
+  @property(cc.Label)
+  scoreLabel: cc.Label = null;
+
   @property(cc.AudioClip)
   bgm: cc.AudioClip = null;
 
@@ -60,6 +63,10 @@ export default class GameManager extends cc.Component {
   playerState: string = "SMALL";   // "SMALL" | "BIG" | "DEAD"
 
   timerSeconds: number = 0;        // counts UP from 0
+  // Coin score. Pure runtime — resets to 0 every scene load, so a death +
+  // respawn (which re-spawns all coins) also resets the score, preventing
+  // coin-farming by repeated death.
+  score: number = 0;
   private timerRunning: boolean = false;
   private bgmId: number = -1;
   private gameEnded: boolean = false;
@@ -95,6 +102,7 @@ export default class GameManager extends cc.Component {
     // Init HUD
     this.updateLivesLabel();
     this.updateTimerLabel();
+    this.updateScoreLabel();
 
     // Start BGM
     if (this.bgm) {
@@ -137,6 +145,13 @@ export default class GameManager extends cc.Component {
 
     this.timerSeconds += dt;
     this.updateTimerLabel();
+  }
+
+  // ─── score ───────────────────────────────────────────────────────────────────
+
+  addScore(amount: number) {
+    this.score += amount;
+    this.updateScoreLabel();
   }
 
   // ─── lives ───────────────────────────────────────────────────────────────────
@@ -210,14 +225,16 @@ export default class GameManager extends cc.Component {
   // Submit completion time to the backend leaderboard
   private submitToLeaderboard() {
     const elapsed = Math.floor(this.timerSeconds);
+    const coins   = Math.floor(this.score);
     const level   = this.currentLevel;
     Auth.currentUser().then(function (user: any) {
       var name = "anonymous";
       if (user) {
         name = user.username || user.email || "anonymous";
       }
-      cc.log("[GameManager] Submitting to leaderboard: " + name + " level=" + level + " time=" + elapsed + "s");
-      return Leaderboard.submitEntry(name, level, elapsed);
+      cc.log("[GameManager] Submitting to leaderboard: " + name + " level=" + level +
+             " time=" + elapsed + "s score=" + coins);
+      return Leaderboard.submitEntry(name, level, elapsed, coins);
     }).then(function (result: any) {
       cc.log("[GameManager] Leaderboard submit success:", result);
     }).catch(function (e: any) {
@@ -247,6 +264,7 @@ export default class GameManager extends cc.Component {
           .set({
             lives: self.lives,
             level: self.currentLevel,
+            score: self.score,
             savedAt: firebase.database.ServerValue.TIMESTAMP,
           });
       });
@@ -294,6 +312,15 @@ export default class GameManager extends cc.Component {
       const mmStr = (mm < 10 ? "0" : "") + mm;
       const ssStr = (ss < 10 ? "0" : "") + ss;
       this.timerLabel.string = "TIME: " + mmStr + ":" + ssStr;
+    }
+  }
+
+  private updateScoreLabel() {
+    if (this.scoreLabel) {
+      const s = Math.max(0, Math.floor(this.score));
+      let str = String(s);
+      while (str.length < 6) { str = "0" + str; }
+      this.scoreLabel.string = "SCORE: " + str;
     }
   }
 }

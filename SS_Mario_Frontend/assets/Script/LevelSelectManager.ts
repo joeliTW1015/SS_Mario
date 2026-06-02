@@ -194,14 +194,17 @@ export default class LevelSelectManager extends cc.Component {
       var rank  = String(i + 1);
       var name  = String(e.username || "???").slice(0, 10);
       var time  = formatTime(e.score);
+      var score = String(e.coins != null ? e.coins : 0);
       var date  = formatDate(e.timestamp);
 
       // Pad rank
       if (rank.length < 2) { rank = " " + rank; }
       // Pad name to 10 chars
       while (name.length < 10) { name = name + " "; }
+      // Pad score to 6 chars (right-aligned)
+      while (score.length < 6) { score = " " + score; }
 
-      lines.push("#" + rank + "  " + name + "  " + time + "  " + date);
+      lines.push("#" + rank + "  " + name + "  " + time + "  " + score + "  " + date);
     }
 
     itemLabel.string = lines.join("\n");
@@ -226,23 +229,25 @@ export default class LevelSelectManager extends cc.Component {
       // Find best (lowest score) entry matching this user for each level
       var best1 = self.findBestEntry(level1Entries, username);
       var best2 = self.findBestEntry(level2Entries, username);
+      var bestScore1 = self.findBestScore(level1Entries, username);
+      var bestScore2 = self.findBestScore(level2Entries, username);
 
       if (self.recordText1) {
-        self.recordText1.string = best1 !== null
-          ? "Time: " + formatTime(best1)
-          : "Time: --:--";
+        self.recordText1.string =
+          (best1 !== null ? "Time: " + formatTime(best1) : "Time: --:--") +
+          "\nScore: " + bestScore1;
       }
       if (self.recordText2) {
-        self.recordText2.string = best2 !== null
-          ? "Time: " + formatTime(best2)
-          : "Time: --:--";
+        self.recordText2.string =
+          (best2 !== null ? "Time: " + formatTime(best2) : "Time: --:--") +
+          "\nScore: " + bestScore2;
       }
     }).catch(function (e: any) {
       cc.warn("[LevelSelect] loadPersonalRecords failed:", e);
     });
   }
 
-  // Returns the best (lowest) score for the given username, or null.
+  // Returns the best (lowest) time for the given username, or null.
   private findBestEntry(entries: any[], username: string): number {
     var best: number = null;
     for (var i = 0; i < entries.length; i++) {
@@ -252,6 +257,20 @@ export default class LevelSelectManager extends cc.Component {
         if (best === null || e.score < best) {
           best = e.score;
         }
+      }
+    }
+    return best;
+  }
+
+  // Returns the highest coin score for the given username (0 if none).
+  private findBestScore(entries: any[], username: string): number {
+    var best: number = 0;
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      var eName = String(e.username || "");
+      if (eName === username) {
+        var c = (e.coins != null ? e.coins : 0);
+        if (c > best) { best = c; }
       }
     }
     return best;
